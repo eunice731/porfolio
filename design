@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Falling Icons Portfolio</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden; /* 스크롤 안 나오게 전체 화면 */
+      background: #0b0c10;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .info {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 8px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="info">아이콘을 클릭하면 섹션/페이지로 이동하게 연결할 수 있습니다.</div>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    // ----- 기본 세팅 -----
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const gravity = 0.5;      // 중력(숫자 키우면 더 빨리 떨어짐)
+    const icons = [];         // 아이콘들을 저장할 배열
+
+    // ----- 아이콘 생성 함수 -----
+    function createIcon(label, color, link) {
+      const radius = 40; // 아이콘 크기 (원 반지름)
+      const x = radius + Math.random() * (canvas.width - radius * 2);
+      const y = -radius - Math.random() * 200; // 화면 위에서 랜덤 높이에서 떨어지게
+
+      icons.push({
+        x,
+        y,
+        radius,
+        vy: 0,          // y 방향 속도
+        color,
+        label,
+        link,
+        resting: false  // 바닥에 안착했는지 여부
+      });
+    }
+
+    // 포트폴리오용 아이콘들 (여기 내용만 바꿔도 됨)
+    const portfolioItems = [
+      { label: 'Branding',     color: '#ff8a80', link: '#branding' },
+      { label: 'UI / UX',      color: '#80d8ff', link: '#uiux' },
+      { label: 'Illustration', color: '#ffd180', link: '#illust' },
+      { label: 'Writing',      color: '#b39ddb', link: '#writing' }
+    ];
+
+    // 아이콘들을 순서대로 떨어지게 생성
+    portfolioItems.forEach((item, index) => {
+      setTimeout(() => createIcon(item.label, item.color, item.link), index * 400);
+    });
+
+    // ----- 물리 업데이트 -----
+    function update() {
+      const floor = canvas.height - 40; // 바닥 y 위치
+
+      icons.forEach(icon => {
+        if (!icon.resting) {
+          // 중력
+          icon.vy += gravity;
+          icon.y += icon.vy;
+
+          // 바닥에 닿으면 처리
+          if (icon.y + icon.radius > floor) {
+            icon.y = floor - icon.radius;
+
+            // 속도가 충분히 느리면 안착
+            if (Math.abs(icon.vy) < 1) {
+              icon.vy = 0;
+              icon.resting = true;
+            } else {
+              // 살짝 튀어오르는 느낌
+              icon.vy *= -0.3;
+            }
+          }
+        }
+      });
+    }
+
+    // ----- 그리기 -----
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 바닥
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+
+      // 아이콘들
+      icons.forEach(icon => {
+        // 동그라미
+        ctx.beginPath();
+        ctx.arc(icon.x, icon.y, icon.radius, 0, Math.PI * 2);
+        ctx.fillStyle = icon.color;
+        ctx.fill();
+
+        // 텍스트
+        ctx.fillStyle = '#111';
+        ctx.font = '14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon.label, icon.x, icon.y);
+      });
+    }
+
+    // ----- 메인 루프 -----
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    // ----- 아이콘 클릭 시 링크 이동 -----
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      icons.forEach(icon => {
+        const dx = x - icon.x;
+        const dy = y - icon.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= icon.radius) {
+          if (icon.link && icon.link.startsWith('#')) {
+            // 같은 페이지 안의 섹션으로 스크롤
+            const target = document.querySelector(icon.link);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth' });
+            }
+          } else if (icon.link) {
+            // 외부 링크면 새 탭으로 열기
+            window.open(icon.link, '_blank');
+          }
+        }
+      });
+    });
+  </script>
+
+  <!-- 실제 포트폴리오 섹션은 이런 식으로 아래에 추가하면 됩니다
+  <section id="branding">브랜딩 작업들...</section>
+  <section id="uiux">UI/UX 작업들...</section>
+  ... -->
+</body>
+</html>
