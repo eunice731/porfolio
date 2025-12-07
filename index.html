@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall (Mobile Optimized)</title>
+  <title>Portfolio Physics Wall (Strong Mobile Version)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -37,6 +37,7 @@
       padding: 0 16px;
       transition: opacity 0.3s ease;
       z-index: 5;
+      line-height: 1.6;
     }
     #intro.hidden {
       opacity: 0;
@@ -111,7 +112,7 @@
     .detail-body {
       font-size: 0.9rem;
       color: #444;
-      line-height: 1.5;
+      line-height: 1.6;
       overflow-y: auto;
       padding-right: 4px;
     }
@@ -121,26 +122,32 @@
       margin-top: 4px;
     }
 
-    /* ====== 모바일용 튜닝 ====== */
-    @media (max-width: 768px) {
+    /* ====== 모바일(좁은 화면)에서 확실히 크게 ====== */
+    @media (max-width: 900px) {
       #intro {
-        font-size: 1rem;
-        padding: 0 24px;
+        font-size: 1.3rem;
+        padding: 0 28px;
       }
       .detail-modal {
-        width: 92vw;
-        max-height: 75vh;
-        border-radius: 14px;
-        padding: 18px 16px;
+        width: 94vw;
+        max-height: 80vh;
+        border-radius: 18px;
+        padding: 22px 20px;
       }
       .detail-title {
-        font-size: 1.1rem;
+        font-size: 1.35rem;
       }
-      .detail-body {
+      .detail-tag {
         font-size: 0.95rem;
       }
+      .detail-body {
+        font-size: 1.05rem;
+      }
       .detail-meta {
-        font-size: 0.8rem;
+        font-size: 0.9rem;
+      }
+      .detail-close {
+        font-size: 1.6rem;
       }
     }
   </style>
@@ -189,7 +196,8 @@
     window.addEventListener('resize', resize);
     resize();
 
-    const isMobile = () => window.innerWidth <= 768;
+    const MOBILE_BREAKPOINT = 900;
+    const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
 
     // ===== 작업 데이터 =====
     const works = [
@@ -255,17 +263,17 @@
 
       const mobile = isMobile();
 
-      // 모바일에서는 개수 줄이고, 크기 키우기
-      const count = mobile ? 9 : 14;
+      // 모바일: 적게, 크게 / PC: 기존
+      const count = mobile ? 7 : 14;
 
-      const baseRadius = mobile ? 55 : 40;
-      const radiusRange = mobile ? 35 : 25; // 모바일: 55~90, 데스크탑: 40~65
+      const baseRadius = mobile ? 80 : 40;
+      const radiusRange = mobile ? 40 : 25; // 모바일: 80~120, PC: 40~65
 
       for (let i = 0; i < count; i++) {
         const r = baseRadius + Math.random() * radiusRange;
         const x = r + Math.random() * (w - 2 * r);
         const y = -200 - Math.random() * 300;
-        const vx = (Math.random() - 0.5) * (mobile ? 50 : 60);
+        const vx = (Math.random() - 0.5) * (mobile ? 40 : 60); // 모바일은 조금 더 느리게
         const vy = 0;
 
         const work = works[i % works.length];
@@ -393,8 +401,8 @@
         ctx.fillStyle = s.color;
         ctx.fill();
 
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.font = mobile ? '600 15px system-ui' : '500 13px system-ui';
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.font = mobile ? '700 20px system-ui' : '500 13px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(s.id.replace('work-', '#'), s.x, s.y);
