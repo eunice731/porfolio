@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall (Mobile + Inertia + Center Modal)</title>
+  <title>Portfolio Physics Wall (Mobile Optimized)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -31,7 +31,7 @@
       align-items: center;
       justify-content: center;
       pointer-events: none;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       color: #999;
       text-align: center;
       padding: 0 16px;
@@ -61,7 +61,7 @@
     }
 
     .detail-modal {
-      width: min(480px, 90vw);
+      width: min(480px, 80vw);
       max-height: min(70vh, 90vh);
       background: rgba(255,255,255,0.98);
       border-radius: 16px;
@@ -120,6 +120,29 @@
       color: #999;
       margin-top: 4px;
     }
+
+    /* ====== 모바일용 튜닝 ====== */
+    @media (max-width: 768px) {
+      #intro {
+        font-size: 1rem;
+        padding: 0 24px;
+      }
+      .detail-modal {
+        width: 92vw;
+        max-height: 75vh;
+        border-radius: 14px;
+        padding: 18px 16px;
+      }
+      .detail-title {
+        font-size: 1.1rem;
+      }
+      .detail-body {
+        font-size: 0.95rem;
+      }
+      .detail-meta {
+        font-size: 0.8rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -166,7 +189,9 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // ===== 작업 데이터 (나중에 PNG 연결할 자리) =====
+    const isMobile = () => window.innerWidth <= 768;
+
+    // ===== 작업 데이터 =====
     const works = [
       {
         id: 'work-1',
@@ -205,7 +230,7 @@
       }
     ];
 
-    // ===== 도형(지금은 원) 배열 =====
+    // ===== 도형 배열 =====
     const shapes = [];
     let hasSpawned = false;
 
@@ -228,13 +253,19 @@
       const h = canvas.height;
       shapes.length = 0;
 
-      const count = 14; // 도형 개수
+      const mobile = isMobile();
+
+      // 모바일에서는 개수 줄이고, 크기 키우기
+      const count = mobile ? 9 : 14;
+
+      const baseRadius = mobile ? 55 : 40;
+      const radiusRange = mobile ? 35 : 25; // 모바일: 55~90, 데스크탑: 40~65
 
       for (let i = 0; i < count; i++) {
-        const r = 40 + Math.random() * 25; // 40~65
+        const r = baseRadius + Math.random() * radiusRange;
         const x = r + Math.random() * (w - 2 * r);
-        const y = -200 - Math.random() * 300; // 화면 위에서 떨어지게
-        const vx = (Math.random() - 0.5) * 60;
+        const y = -200 - Math.random() * 300;
+        const vx = (Math.random() - 0.5) * (mobile ? 50 : 60);
         const vy = 0;
 
         const work = works[i % works.length];
@@ -253,23 +284,20 @@
     }
 
     // ===== 물리 업데이트 =====
-    const gravity = 800;      // px/s^2
-    const damping = 0.8;      // 벽/바닥 감쇠
-    const restitution = 0.5;  // 도형끼리 충돌 탄성
+    const gravity = 800;
+    const damping = 0.8;
+    const restitution = 0.5;
     let lastTime = null;
 
     function update(dt) {
       const w = canvas.width;
       const h = canvas.height;
 
-      // 중력 + 위치 업데이트
       for (const s of shapes) {
         if (!s.isDragging) {
           s.vy += gravity * dt;
           s.x += s.vx * dt;
           s.y += s.vy * dt;
-        } else {
-          // 드래그 중엔 위치는 포인터가 직접 제어, 물리속도는 따로 처리 안 함
         }
 
         // 좌우 벽
@@ -310,7 +338,6 @@
             const nx = dx / dist;
             const ny = dy / dist;
 
-            // 드래그 중인 애는 위치 고정, 나머지만 밀기
             if (a.isDragging && !b.isDragging) {
               b.x += nx * overlap;
               b.y += ny * overlap;
@@ -326,7 +353,6 @@
               continue;
             }
 
-            // 둘 다 자유 상태면 반반씩 밀고 탄성 충돌
             a.x -= nx * overlap * 0.5;
             a.y -= ny * overlap * 0.5;
             b.x += nx * overlap * 0.5;
@@ -359,14 +385,16 @@
     // ===== 렌더링 =====
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const mobile = isMobile();
+
       for (const s of shapes) {
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
         ctx.fillStyle = s.color;
         ctx.fill();
 
-        ctx.fillStyle = 'rgba(0,0,0,0.65)';
-        ctx.font = '500 13px system-ui';
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.font = mobile ? '600 15px system-ui' : '500 13px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(s.id.replace('work-', '#'), s.x, s.y);
@@ -403,10 +431,7 @@
 
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', (e) => {
-      // 바깥(어두운 영역) 클릭 시 닫기
-      if (e.target === detailOverlay) {
-        hideDetail();
-      }
+      if (e.target === detailOverlay) hideDetail();
     });
 
     // ===== 포인터(마우스 + 터치) 공통 상태 =====
@@ -418,8 +443,6 @@
     let lastPointerY = 0;
     let pointerDownTime = 0;
     let pointerMovedDistSq = 0;
-
-    // 드래그 관성 계산용: 최근 위치 히스토리
     let dragHistory = []; // {x, y, t}
 
     function getShapeAt(x, y) {
@@ -458,7 +481,6 @@
 
       const dx = x - lastPointerX;
       const dy = y - lastPointerY;
-
       pointerMovedDistSq += dx * dx + dy * dy;
 
       dragTarget.x = x - dragOffsetX;
@@ -469,9 +491,7 @@
 
       const now = performance.now();
       dragHistory.push({ x: dragTarget.x, y: dragTarget.y, t: now });
-      if (dragHistory.length > 5) {
-        dragHistory.shift(); // 최근 5개 샘플만 유지
-      }
+      if (dragHistory.length > 5) dragHistory.shift();
     }
 
     function pointerUp(x, y) {
@@ -484,7 +504,6 @@
 
       let clickedShape = dragTarget || getShapeAt(x, y || lastPointerX, y || lastPointerY);
 
-      // ★ 드래그 종료 시 관성(속도) 부여 ★
       if (dragTarget) {
         dragTarget.isDragging = false;
         if (dragHistory.length >= 2) {
@@ -495,7 +514,7 @@
             const dt = dtMs / 1000;
             const vx = (b.x - a.x) / dt;
             const vy = (b.y - a.y) / dt;
-            dragTarget.vx = vx * 0.9; // 살짝 감쇠해서 과하지 않게
+            dragTarget.vx = vx * 0.9;
             dragTarget.vy = vy * 0.9;
           }
         }
@@ -504,7 +523,6 @@
       dragTarget = null;
       dragHistory = [];
 
-      // 거의 안 움직이고 짧게 눌렀으면 클릭으로 처리
       if (clickedShape && pointerMovedDistSq <= CLICK_DIST_SQ && elapsed <= CLICK_TIME) {
         showDetail(clickedShape.work);
       }
@@ -534,14 +552,13 @@
     });
 
     window.addEventListener('mouseup', () => {
-      // 캔버스 밖에서 떨어져도 드래그 종료
       if (dragTarget) dragTarget.isDragging = false;
       isPointerDown = false;
       dragTarget = null;
       dragHistory = [];
     });
 
-    // ===== 터치 이벤트 (모바일) =====
+    // ===== 터치 이벤트 =====
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -563,7 +580,6 @@
 
     canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
-      // touchend에는 좌표가 없을 수 있으니 마지막 좌표 사용
       pointerUp(lastPointerX, lastPointerY);
     }, { passive: false });
 
