@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall (Refined)</title>
+  <title>Portfolio Physics Wall (Mobile + Inertia + Center Modal)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -21,6 +21,7 @@
       inset: 0;
       display: block;
       background: #ffffff;
+      touch-action: none; /* 모바일에서 기본 스크롤/줌 방지 */
     }
 
     #intro {
@@ -32,44 +33,71 @@
       pointer-events: none;
       font-size: 1.1rem;
       color: #999;
+      text-align: center;
+      padding: 0 16px;
       transition: opacity 0.3s ease;
+      z-index: 5;
     }
     #intro.hidden {
       opacity: 0;
     }
 
-    .detail-panel {
+    /* 가운데 모달용 오버레이 */
+    .detail-overlay {
       position: fixed;
-      top: 0;
-      right: 0;
-      width: min(360px, 80vw);
-      height: 100%;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 10;
+    }
+    .detail-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .detail-modal {
+      width: min(480px, 90vw);
+      max-height: min(70vh, 90vh);
       background: rgba(255,255,255,0.98);
-      box-shadow: -8px 0 20px rgba(0,0,0,0.08);
-      padding: 24px 20px;
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.22);
+      padding: 20px 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
-      z-index: 10;
+      animation: pop-in 0.22s ease-out;
     }
-    .detail-panel.open {
-      transform: translateX(0);
+
+    @keyframes pop-in {
+      from {
+        transform: translateY(6px) scale(0.96);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
     }
+
     .detail-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
     }
     .detail-title {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 600;
     }
     .detail-tag {
       font-size: 0.8rem;
       color: #777;
+      margin-top: 4px;
     }
     .detail-close {
       border: none;
@@ -78,43 +106,53 @@
       line-height: 1;
       cursor: pointer;
       padding: 4px 6px;
+      margin: -4px -4px 0 0;
     }
     .detail-body {
       font-size: 0.9rem;
       color: #444;
       line-height: 1.5;
       overflow-y: auto;
+      padding-right: 4px;
     }
     .detail-meta {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: #999;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
   <canvas id="canvas"></canvas>
-  <div id="intro">어디든 한 번 클릭하면 작업들이 우르르 떨어집니다. / 드래그 &amp; 클릭해 보세요.</div>
+  <div id="intro">
+    어디든 한 번 탭/클릭하면 작업들이 우르르 떨어집니다.<br />
+    도형을 드래그해서 움직이고, 톡 클릭하면 설명이 떠요.
+  </div>
 
-  <aside class="detail-panel" id="detailPanel">
-    <div class="detail-header">
-      <div>
-        <div class="detail-title" id="detailTitle">작업 제목</div>
-        <div class="detail-tag" id="detailTag">카테고리 / 연도</div>
+  <!-- 중앙 모달 오버레이 -->
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-modal">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title" id="detailTitle">작업 제목</div>
+          <div class="detail-tag" id="detailTag">카테고리 / 연도</div>
+        </div>
+        <button class="detail-close" id="detailClose" aria-label="닫기">×</button>
       </div>
-      <button class="detail-close" id="detailClose" aria-label="닫기">×</button>
+      <div class="detail-body" id="detailBody">
+        여기에 작업 설명이 들어갑니다.
+      </div>
+      <div class="detail-meta" id="detailMeta"></div>
     </div>
-    <div class="detail-body" id="detailBody">
-      여기에 작업 설명이 들어갑니다.
-    </div>
-    <div class="detail-meta" id="detailMeta"></div>
-  </aside>
+  </div>
 
   <script>
     // ===== 캔버스 / 기본 세팅 =====
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
-    const detailPanel = document.getElementById('detailPanel');
+
+    const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
@@ -196,10 +234,10 @@
         const r = 40 + Math.random() * 25; // 40~65
         const x = r + Math.random() * (w - 2 * r);
         const y = -200 - Math.random() * 300; // 화면 위에서 떨어지게
-        const vx = (Math.random() - 0.5) * 60; // 속도 조금 줄임
+        const vx = (Math.random() - 0.5) * 60;
         const vy = 0;
 
-        const work = works[i % works.length]; // 그냥 순환해서 연결
+        const work = works[i % works.length];
         shapes.push({
           id: work.id,
           x,
@@ -208,15 +246,15 @@
           vy,
           radius: r,
           color: randomColor(),
-          work: work,
+          work,
           isDragging: false
         });
       }
     }
 
     // ===== 물리 업데이트 =====
-    const gravity = 800;      // px/s^2 (살짝 줄임)
-    const damping = 0.8;      // 바닥/벽 반사 감쇠
+    const gravity = 800;      // px/s^2
+    const damping = 0.8;      // 벽/바닥 감쇠
     const restitution = 0.5;  // 도형끼리 충돌 탄성
     let lastTime = null;
 
@@ -231,12 +269,10 @@
           s.x += s.vx * dt;
           s.y += s.vy * dt;
         } else {
-          // 드래그 중에는 물리 속도를 강제로 제어
-          s.vx = 0;
-          s.vy = 0;
+          // 드래그 중엔 위치는 포인터가 직접 제어, 물리속도는 따로 처리 안 함
         }
 
-        // 좌우 벽 충돌
+        // 좌우 벽
         if (s.x - s.radius < 0) {
           s.x = s.radius;
           if (s.vx < 0) s.vx = -s.vx * damping;
@@ -246,20 +282,20 @@
           if (s.vx > 0) s.vx = -s.vx * damping;
         }
 
-        // 바닥 충돌
+        // 바닥
         if (s.y + s.radius > h) {
           s.y = h - s.radius;
           if (s.vy > 0) s.vy = -s.vy * damping;
         }
 
-        // ★ 천장 충돌 추가 ★
+        // 천장
         if (s.y - s.radius < 0) {
           s.y = s.radius;
           if (s.vy < 0) s.vy = -s.vy * damping;
         }
       }
 
-      // 도형 간 충돌 (간단 버전, 원끼리)
+      // 도형 간 충돌
       for (let i = 0; i < shapes.length; i++) {
         for (let j = i + 1; j < shapes.length; j++) {
           const a = shapes[i];
@@ -274,13 +310,10 @@
             const nx = dx / dist;
             const ny = dy / dist;
 
-            // ===== 드래그 중일 때: 드래그 중인 애는 안 건드리고, 나머지만 밀기 =====
+            // 드래그 중인 애는 위치 고정, 나머지만 밀기
             if (a.isDragging && !b.isDragging) {
-              // a는 마우스가 고정시키고 있으니 b만 밀어냄
               b.x += nx * overlap;
               b.y += ny * overlap;
-
-              // 부드럽게 밀리게 살짝 속도만 더해줌
               b.vx += nx * overlap * 5;
               b.vy += ny * overlap * 5;
               continue;
@@ -288,13 +321,12 @@
             if (b.isDragging && !a.isDragging) {
               a.x -= nx * overlap;
               a.y -= ny * overlap;
-
               a.vx -= nx * overlap * 5;
               a.vy -= ny * overlap * 5;
               continue;
             }
 
-            // ===== 둘 다 드래그 중이 아니면: 일반적인 충돌 처리 (양쪽 다 조금씩 밀기) =====
+            // 둘 다 자유 상태면 반반씩 밀고 탄성 충돌
             a.x -= nx * overlap * 0.5;
             a.y -= ny * overlap * 0.5;
             b.x += nx * overlap * 0.5;
@@ -305,7 +337,6 @@
             const relAlongNormal = relVx * nx + relVy * ny;
 
             if (relAlongNormal < 0) {
-              // 단순한 탄성 충돌: 질량 같다고 보고 처리
               const jImpulse = -(1 + restitution) * relAlongNormal / 2;
               const ix = jImpulse * nx;
               const iy = jImpulse * ny;
@@ -334,7 +365,6 @@
         ctx.fillStyle = s.color;
         ctx.fill();
 
-        // 간단한 텍스트 라벨 (작업 번호 느낌)
         ctx.fillStyle = 'rgba(0,0,0,0.65)';
         ctx.font = '500 13px system-ui';
         ctx.textAlign = 'center';
@@ -345,7 +375,7 @@
 
     function loop(timestamp) {
       if (!lastTime) lastTime = timestamp;
-      const dt = Math.min((timestamp - lastTime) / 1000, 0.03); // 30ms 이상은 컷
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.03);
       lastTime = timestamp;
 
       if (shapes.length > 0) {
@@ -359,31 +389,40 @@
     }
     requestAnimationFrame(loop);
 
-    // ===== 상세 패널 =====
+    // ===== 상세 모달 =====
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.description;
       detailMeta.textContent = work.meta || '';
-      detailPanel.classList.add('open');
+      detailOverlay.classList.add('open');
     }
     function hideDetail() {
-      detailPanel.classList.remove('open');
+      detailOverlay.classList.remove('open');
     }
-    detailClose.addEventListener('click', hideDetail);
 
-    // ===== 마우스 / 드래그 & 클릭 구분 =====
-    let isMouseDown = false;
+    detailClose.addEventListener('click', hideDetail);
+    detailOverlay.addEventListener('click', (e) => {
+      // 바깥(어두운 영역) 클릭 시 닫기
+      if (e.target === detailOverlay) {
+        hideDetail();
+      }
+    });
+
+    // ===== 포인터(마우스 + 터치) 공통 상태 =====
+    let isPointerDown = false;
     let dragTarget = null;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
-    let lastMouseX = 0;
-    let lastMouseY = 0;
-    let mouseDownTime = 0;
-    let mouseMovedDistSq = 0;
+    let lastPointerX = 0;
+    let lastPointerY = 0;
+    let pointerDownTime = 0;
+    let pointerMovedDistSq = 0;
+
+    // 드래그 관성 계산용: 최근 위치 히스토리
+    let dragHistory = []; // {x, y, t}
 
     function getShapeAt(x, y) {
-      // 위에 있는 것부터 잡고 싶으면 뒤에서부터 검사
       for (let i = shapes.length - 1; i >= 0; i--) {
         const s = shapes[i];
         const dx = x - s.x;
@@ -395,92 +434,165 @@
       return null;
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      isMouseDown = true;
-      lastMouseX = x;
-      lastMouseY = y;
-      mouseDownTime = performance.now();
-      mouseMovedDistSq = 0;
+    function pointerDown(x, y) {
+      isPointerDown = true;
+      lastPointerX = x;
+      lastPointerY = y;
+      pointerDownTime = performance.now();
+      pointerMovedDistSq = 0;
+      dragHistory = [];
 
       const s = getShapeAt(x, y);
       if (s) {
         dragTarget = s;
         dragOffsetX = x - s.x;
         dragOffsetY = y - s.y;
-        s.isDragging = true; // ★ 드래그 시작 표시
+        s.isDragging = true;
       } else {
         dragTarget = null;
       }
-    });
+    }
 
-    canvas.addEventListener('mousemove', (e) => {
-      if (!isMouseDown || !dragTarget) return;
+    function pointerMove(x, y) {
+      if (!isPointerDown || !dragTarget) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const dx = x - lastPointerX;
+      const dy = y - lastPointerY;
 
-      const dx = x - lastMouseX;
-      const dy = y - lastMouseY;
+      pointerMovedDistSq += dx * dx + dy * dy;
 
-      mouseMovedDistSq += dx * dx + dy * dy;
-
-      // 드래그 중인 도형 위치를 마우스에 고정
       dragTarget.x = x - dragOffsetX;
       dragTarget.y = y - dragOffsetY;
 
-      lastMouseX = x;
-      lastMouseY = y;
-    });
+      lastPointerX = x;
+      lastPointerY = y;
 
-    canvas.addEventListener('mouseup', (e) => {
-      if (!isMouseDown) return;
-      isMouseDown = false;
+      const now = performance.now();
+      dragHistory.push({ x: dragTarget.x, y: dragTarget.y, t: now });
+      if (dragHistory.length > 5) {
+        dragHistory.shift(); // 최근 5개 샘플만 유지
+      }
+    }
 
+    function pointerUp(x, y) {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+
+      const elapsed = performance.now() - pointerDownTime;
+      const CLICK_DIST_SQ = 10 * 10;
+      const CLICK_TIME = 300;
+
+      let clickedShape = dragTarget || getShapeAt(x, y || lastPointerX, y || lastPointerY);
+
+      // ★ 드래그 종료 시 관성(속도) 부여 ★
+      if (dragTarget) {
+        dragTarget.isDragging = false;
+        if (dragHistory.length >= 2) {
+          const a = dragHistory[dragHistory.length - 2];
+          const b = dragHistory[dragHistory.length - 1];
+          const dtMs = b.t - a.t;
+          if (dtMs > 0) {
+            const dt = dtMs / 1000;
+            const vx = (b.x - a.x) / dt;
+            const vy = (b.y - a.y) / dt;
+            dragTarget.vx = vx * 0.9; // 살짝 감쇠해서 과하지 않게
+            dragTarget.vy = vy * 0.9;
+          }
+        }
+      }
+
+      dragTarget = null;
+      dragHistory = [];
+
+      // 거의 안 움직이고 짧게 눌렀으면 클릭으로 처리
+      if (clickedShape && pointerMovedDistSq <= CLICK_DIST_SQ && elapsed <= CLICK_TIME) {
+        showDetail(clickedShape.work);
+      }
+    }
+
+    // ===== 마우스 이벤트 =====
+    canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-
-      const elapsed = performance.now() - mouseDownTime;
-      const CLICK_DIST_SQ = 10 * 10; // 10px 이하 움직임이면 클릭으로 간주
-      const CLICK_TIME = 300;        // 300ms 안이면 클릭
-
-      const clickedShape = dragTarget || getShapeAt(x, y);
-
-      if (dragTarget) {
-        dragTarget.isDragging = false; // ★ 드래그 종료
-      }
-      dragTarget = null;
-
-      // “거의 안 움직였고, 빠르게 눌렀다 떼면” → 클릭으로 처리
-      if (clickedShape && mouseMovedDistSq <= CLICK_DIST_SQ && elapsed <= CLICK_TIME) {
-        showDetail(clickedShape.work);
-      }
+      pointerDown(x, y);
     });
 
-    // 드래그 중 캔버스 밖으로 나갔다가 들어오는 케이스 방지
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isPointerDown) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      pointerMove(x, y);
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      pointerUp(x, y);
+    });
+
     window.addEventListener('mouseup', () => {
-      if (dragTarget) {
-        dragTarget.isDragging = false;
-      }
-      isMouseDown = false;
+      // 캔버스 밖에서 떨어져도 드래그 종료
+      if (dragTarget) dragTarget.isDragging = false;
+      isPointerDown = false;
       dragTarget = null;
+      dragHistory = [];
     });
 
-    // ===== 첫 클릭 시 도형 떨어뜨리기 =====
-    document.body.addEventListener('click', function handleFirstClick() {
+    // ===== 터치 이벤트 (모바일) =====
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      pointerDown(x, y);
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!isPointerDown) return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      pointerMove(x, y);
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      // touchend에는 좌표가 없을 수 있으니 마지막 좌표 사용
+      pointerUp(lastPointerX, lastPointerY);
+    }, { passive: false });
+
+    canvas.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      if (dragTarget) dragTarget.isDragging = false;
+      isPointerDown = false;
+      dragTarget = null;
+      dragHistory = [];
+    }, { passive: false });
+
+    // ===== 첫 클릭/탭 시 도형 떨어뜨리기 =====
+    function handleFirstActivate() {
       if (!hasSpawned) {
         hasSpawned = true;
         intro.classList.add('hidden');
         spawnShapes();
       }
-      // 이후부터는 이 핸들러 필요 없으니 제거
-      document.body.removeEventListener('click', handleFirstClick);
+    }
+
+    document.body.addEventListener('click', function onceClick() {
+      handleFirstActivate();
+      document.body.removeEventListener('click', onceClick);
     }, { once: true });
+
+    document.body.addEventListener('touchstart', function onceTouch() {
+      handleFirstActivate();
+      document.body.removeEventListener('touchstart', onceTouch);
+    }, { once: true, passive: true });
   </script>
 </body>
 </html>
