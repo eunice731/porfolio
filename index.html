@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall (Simple)</title>
+  <title>Portfolio Physics Wall (Refined)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -196,7 +196,7 @@
         const r = 40 + Math.random() * 25; // 40~65
         const x = r + Math.random() * (w - 2 * r);
         const y = -200 - Math.random() * 300; // 화면 위에서 떨어지게
-        const vx = (Math.random() - 0.5) * 100;
+        const vx = (Math.random() - 0.5) * 60; // 속도 조금 줄임
         const vy = 0;
 
         const work = works[i % works.length]; // 그냥 순환해서 연결
@@ -208,14 +208,16 @@
           vy,
           radius: r,
           color: randomColor(),
-          work: work
+          work: work,
+          isDragging: false
         });
       }
     }
 
     // ===== 물리 업데이트 =====
-    const gravity = 900; // px/s^2
-    const damping = 0.75; // 충돌 감쇠
+    const gravity = 800;      // px/s^2 (살짝 줄임)
+    const damping = 0.8;      // 바닥/벽 반사 감쇠
+    const restitution = 0.5;  // 도형끼리 충돌 탄성
     let lastTime = null;
 
     function update(dt) {
@@ -224,22 +226,36 @@
 
       // 중력 + 위치 업데이트
       for (const s of shapes) {
-        s.vy += gravity * dt;
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
+        if (!s.isDragging) {
+          s.vy += gravity * dt;
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+        } else {
+          // 드래그 중에는 물리 속도를 강제로 제어
+          s.vx = 0;
+          s.vy = 0;
+        }
 
-        // 벽 충돌
+        // 좌우 벽 충돌
         if (s.x - s.radius < 0) {
           s.x = s.radius;
-          s.vx = Math.abs(s.vx) * damping;
+          if (s.vx < 0) s.vx = -s.vx * damping;
         }
         if (s.x + s.radius > w) {
           s.x = w - s.radius;
-          s.vx = -Math.abs(s.vx) * damping;
+          if (s.vx > 0) s.vx = -s.vx * damping;
         }
+
+        // 바닥 충돌
         if (s.y + s.radius > h) {
           s.y = h - s.radius;
-          s.vy = -Math.abs(s.vy) * damping;
+          if (s.vy > 0) s.vy = -s.vy * damping;
+        }
+
+        // ★ 천장 충돌 추가 ★
+        if (s.y - s.radius < 0) {
+          s.y = s.radius;
+          if (s.vy < 0) s.vy = -s.vy * damping;
         }
       }
 
@@ -255,30 +271,49 @@
 
           if (dist > 0 && dist < minDist) {
             const overlap = minDist - dist;
-
             const nx = dx / dist;
             const ny = dy / dist;
 
-            // 포지션 분리 (반반씩 밀기)
+            // ===== 드래그 중일 때: 드래그 중인 애는 안 건드리고, 나머지만 밀기 =====
+            if (a.isDragging && !b.isDragging) {
+              // a는 마우스가 고정시키고 있으니 b만 밀어냄
+              b.x += nx * overlap;
+              b.y += ny * overlap;
+
+              // 부드럽게 밀리게 살짝 속도만 더해줌
+              b.vx += nx * overlap * 5;
+              b.vy += ny * overlap * 5;
+              continue;
+            }
+            if (b.isDragging && !a.isDragging) {
+              a.x -= nx * overlap;
+              a.y -= ny * overlap;
+
+              a.vx -= nx * overlap * 5;
+              a.vy -= ny * overlap * 5;
+              continue;
+            }
+
+            // ===== 둘 다 드래그 중이 아니면: 일반적인 충돌 처리 (양쪽 다 조금씩 밀기) =====
             a.x -= nx * overlap * 0.5;
             a.y -= ny * overlap * 0.5;
             b.x += nx * overlap * 0.5;
             b.y += ny * overlap * 0.5;
 
-            // 속도 교환 비슷하게 (간단한 탄성 충돌 느낌)
             const relVx = b.vx - a.vx;
             const relVy = b.vy - a.vy;
             const relAlongNormal = relVx * nx + relVy * ny;
 
             if (relAlongNormal < 0) {
-              const impulse = -(1.0) * relAlongNormal; // 탄성계수 ≈ 1
-              const ix = impulse * nx;
-              const iy = impulse * ny;
+              // 단순한 탄성 충돌: 질량 같다고 보고 처리
+              const jImpulse = -(1 + restitution) * relAlongNormal / 2;
+              const ix = jImpulse * nx;
+              const iy = jImpulse * ny;
 
-              a.vx -= ix * 0.5;
-              a.vy -= iy * 0.5;
-              b.vx += ix * 0.5;
-              b.vy += iy * 0.5;
+              a.vx -= ix;
+              a.vy -= iy;
+              b.vx += ix;
+              b.vy += iy;
 
               a.vx *= damping;
               a.vy *= damping;
@@ -317,7 +352,6 @@
         update(dt);
         draw();
       } else {
-        // 아무것도 없으면 그냥 흰 화면 유지
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
@@ -377,6 +411,7 @@
         dragTarget = s;
         dragOffsetX = x - s.x;
         dragOffsetY = y - s.y;
+        s.isDragging = true; // ★ 드래그 시작 표시
       } else {
         dragTarget = null;
       }
@@ -394,15 +429,9 @@
 
       mouseMovedDistSq += dx * dx + dy * dy;
 
-      // 드래그 중인 도형 위치 이동
-      const oldX = dragTarget.x;
-      const oldY = dragTarget.y;
+      // 드래그 중인 도형 위치를 마우스에 고정
       dragTarget.x = x - dragOffsetX;
       dragTarget.y = y - dragOffsetY;
-
-      // 움직이는 방향으로 속도 부여 (놓았을 때 관성)
-      dragTarget.vx = (dragTarget.x - oldX) * 60; // 대략적인 스케일
-      dragTarget.vy = (dragTarget.y - oldY) * 60;
 
       lastMouseX = x;
       lastMouseY = y;
@@ -422,7 +451,9 @@
 
       const clickedShape = dragTarget || getShapeAt(x, y);
 
-      // 드래그 종료
+      if (dragTarget) {
+        dragTarget.isDragging = false; // ★ 드래그 종료
+      }
       dragTarget = null;
 
       // “거의 안 움직였고, 빠르게 눌렀다 떼면” → 클릭으로 처리
@@ -433,6 +464,9 @@
 
     // 드래그 중 캔버스 밖으로 나갔다가 들어오는 케이스 방지
     window.addEventListener('mouseup', () => {
+      if (dragTarget) {
+        dragTarget.isDragging = false;
+      }
       isMouseDown = false;
       dragTarget = null;
     });
