@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall</title>
+  <title>Portfolio Physics Wall (Simple)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -16,11 +16,13 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #ffffff;
     }
-    #scene {
+    canvas {
       position: fixed;
       inset: 0;
+      display: block;
+      background: #ffffff;
     }
-    /* 첫 화면 안내 텍스트 */
+
     #intro {
       position: fixed;
       inset: 0;
@@ -36,7 +38,6 @@
       opacity: 0;
     }
 
-    /* 상세 패널 */
     .detail-panel {
       position: fixed;
       top: 0;
@@ -88,12 +89,10 @@
       font-size: 0.8rem;
       color: #999;
     }
-
-    /* 오른쪽 패널이 열릴 때 캔버스를 약간 줄여주고 싶으면 여기서 조정 가능 (지금은 전체 화면 유지) */
   </style>
 </head>
 <body>
-  <div id="scene"></div>
+  <canvas id="canvas"></canvas>
   <div id="intro">어디든 한 번 클릭하면 작업들이 우르르 떨어집니다. / 드래그 &amp; 클릭해 보세요.</div>
 
   <aside class="detail-panel" id="detailPanel">
@@ -110,11 +109,10 @@
     <div class="detail-meta" id="detailMeta"></div>
   </aside>
 
-  <!-- Matter.js (물리엔진) CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
   <script>
-    // ===== 1. 기본 세팅 =====
-    const scene = document.getElementById('scene');
+    // ===== 캔버스 / 기본 세팅 =====
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     const detailPanel = document.getElementById('detailPanel');
     const detailTitle = document.getElementById('detailTitle');
@@ -123,236 +121,211 @@
     const detailMeta = document.getElementById('detailMeta');
     const detailClose = document.getElementById('detailClose');
 
-    const {
-      Engine,
-      Render,
-      Runner,
-      Bodies,
-      Composite,
-      Mouse,
-      MouseConstraint,
-      Events
-    } = Matter;
-
-    const engine = Engine.create();
-    const world = engine.world;
-
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-
-    const render = Render.create({
-      element: scene,
-      engine: engine,
-      options: {
-        width: width,
-        height: height,
-        wireframes: false,
-        background: '#ffffff',
-        pixelRatio: window.devicePixelRatio || 1
-      }
-    });
-
-    Render.run(render);
-    const runner = Runner.create();
-    Runner.run(runner, engine);
-
-    // ===== 2. 경계(바닥 & 벽) 만들기 =====
-    function createBoundaries() {
-      // 기존 경계 제거 후 다시 만들고 싶을 경우를 대비해서 한 번 정리
-      const allBodies = Composite.allBodies(world);
-      allBodies.forEach(body => {
-        if (body.isBoundary) Composite.remove(world, body);
-      });
-
-      const thickness = 80;
-
-      const floor = Bodies.rectangle(
-        width / 2,
-        height + thickness / 2,
-        width * 2,
-        thickness,
-        { isStatic: true }
-      );
-      floor.isBoundary = true;
-
-      const leftWall = Bodies.rectangle(
-        -thickness / 2,
-        height / 2,
-        thickness,
-        height * 2,
-        { isStatic: true }
-      );
-      leftWall.isBoundary = true;
-
-      const rightWall = Bodies.rectangle(
-        width + thickness / 2,
-        height / 2,
-        thickness,
-        height * 2,
-        { isStatic: true }
-      );
-      rightWall.isBoundary = true;
-
-      const ceiling = Bodies.rectangle(
-        width / 2,
-        -thickness / 2,
-        width * 2,
-        thickness,
-        { isStatic: true }
-      );
-      ceiling.isBoundary = true;
-
-      Composite.add(world, [floor, leftWall, rightWall, ceiling]);
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', resize);
+    resize();
 
-    createBoundaries();
-
-    // ===== 3. “작업” 데이터 (지금은 도형 + 텍스트로 대체) =====
+    // ===== 작업 데이터 (나중에 PNG 연결할 자리) =====
     const works = [
       {
         id: 'work-1',
         title: '포스터 시리즈 A',
         tag: 'Graphic / 2024',
-        description: '굵은 타이포그래피와 제한된 컬러 팔레트로 리듬감을 만든 포스터 시리즈입니다.',
-        meta: 'Size: 700×1000mm · Tool: Photoshop, Illustrator',
-        color: '#f6a5c0',
-        shape: 'rect'
+        description: '굵은 타이포와 제한된 컬러 팔레트로 리듬을 만든 포스터 시리즈입니다.',
+        meta: 'Size: 700×1000mm · Tool: Photoshop, Illustrator'
       },
       {
         id: 'work-2',
         title: '웹 인터랙션 실험',
         tag: 'Interactive / 2025',
-        description: '스크롤과 물리 기반 움직임을 결합한 인터랙티브 웹 실험 작업입니다.',
-        meta: 'Prototype · HTML/CSS/JS',
-        color: '#9ad0f5',
-        shape: 'circle'
+        description: '스크롤과 물리 기반 움직임을 결합한 인터랙티브 웹 실험입니다.',
+        meta: 'Prototype · HTML/CSS/JS'
       },
       {
         id: 'work-3',
         title: '브랜딩 콘셉트 B',
         tag: 'Branding / 2023',
-        description: '소셜 이슈와 연결된 브랜드의 톤앤매너를 시각 언어로 정리한 프로젝트입니다.',
-        meta: 'Logo · Stationery · SNS kit',
-        color: '#f9dd8a',
-        shape: 'rect'
+        description: '소셜 이슈와 연결된 브랜드 톤앤매너를 시각 언어로 정리한 프로젝트입니다.',
+        meta: 'Logo · Stationery · SNS kit'
       },
       {
         id: 'work-4',
         title: '에디토리얼 레이아웃',
         tag: 'Editorial / 2023',
         description: '텍스트 밀도가 높은 글을 읽기 쉽게 재배열한 에디토리얼 디자인입니다.',
-        meta: '80p · InDesign, Typography',
-        color: '#c3f0b8',
-        shape: 'rect'
+        meta: '80p · InDesign, Typography'
       },
       {
         id: 'work-5',
         title: '동적 아이덴티티',
         tag: 'Motion / 2024',
         description: '로고와 모션 그래픽을 묶어 시스템 형태로 구성한 아이덴티티 실험입니다.',
-        meta: 'Motion System · After Effects',
-        color: '#d1b2ff',
-        shape: 'circle'
+        meta: 'Motion System · After Effects'
       }
     ];
 
-    // ===== 4. 도형(=나중에 이미지가 될 자리) 우르르 떨어뜨리기 =====
+    // ===== 도형(지금은 원) 배열 =====
+    const shapes = [];
     let hasSpawned = false;
 
-    function spawnWorks() {
-      const bodies = [];
-      const padding = 80;
-      const minX = padding;
-      const maxX = width - padding;
-
-      works.forEach((work, i) => {
-        const size = 80 + Math.random() * 40; // 80~120 정도
-        const x = minX + Math.random() * (maxX - minX);
-        const startY = -200 - i * 40; // 살짝 조금씩 높이를 다르게
-
-        const options = {
-          restitution: 0.7,   // 튀기는 정도
-          friction: 0.2,
-          frictionAir: 0.02,
-          density: 0.0015,
-          render: {
-            fillStyle: work.color,
-            strokeStyle: '#333',
-            lineWidth: 0.8
-          }
-        };
-
-        let body;
-        if (work.shape === 'circle') {
-          body = Bodies.circle(x, startY, size / 2, options);
-        } else {
-          body = Bodies.rectangle(x, startY, size, size, options);
-        }
-
-        body.workId = work.id;
-        bodies.push(body);
-      });
-
-      Composite.add(world, bodies);
+    function randomColor() {
+      const palette = [
+        '#f6a5c0',
+        '#9ad0f5',
+        '#f9dd8a',
+        '#c3f0b8',
+        '#d1b2ff',
+        '#ffd6a5',
+        '#bdb2ff',
+        '#ffc6ff'
+      ];
+      return palette[Math.floor(Math.random() * palette.length)];
     }
 
-    // ===== 5. 마우스(드래그 & 클릭 처리) =====
-    const mouse = Mouse.create(render.canvas);
-    const mouseConstraint = MouseConstraint.create(engine, {
-      mouse,
-      constraint: {
-        stiffness: 0.1,
-        render: {
-          visible: false
+    function spawnShapes() {
+      const w = canvas.width;
+      const h = canvas.height;
+      shapes.length = 0;
+
+      const count = 14; // 도형 개수
+
+      for (let i = 0; i < count; i++) {
+        const r = 40 + Math.random() * 25; // 40~65
+        const x = r + Math.random() * (w - 2 * r);
+        const y = -200 - Math.random() * 300; // 화면 위에서 떨어지게
+        const vx = (Math.random() - 0.5) * 100;
+        const vy = 0;
+
+        const work = works[i % works.length]; // 그냥 순환해서 연결
+        shapes.push({
+          id: work.id,
+          x,
+          y,
+          vx,
+          vy,
+          radius: r,
+          color: randomColor(),
+          work: work
+        });
+      }
+    }
+
+    // ===== 물리 업데이트 =====
+    const gravity = 900; // px/s^2
+    const damping = 0.75; // 충돌 감쇠
+    let lastTime = null;
+
+    function update(dt) {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // 중력 + 위치 업데이트
+      for (const s of shapes) {
+        s.vy += gravity * dt;
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+
+        // 벽 충돌
+        if (s.x - s.radius < 0) {
+          s.x = s.radius;
+          s.vx = Math.abs(s.vx) * damping;
+        }
+        if (s.x + s.radius > w) {
+          s.x = w - s.radius;
+          s.vx = -Math.abs(s.vx) * damping;
+        }
+        if (s.y + s.radius > h) {
+          s.y = h - s.radius;
+          s.vy = -Math.abs(s.vy) * damping;
         }
       }
-    });
 
-    Composite.add(world, mouseConstraint);
+      // 도형 간 충돌 (간단 버전, 원끼리)
+      for (let i = 0; i < shapes.length; i++) {
+        for (let j = i + 1; j < shapes.length; j++) {
+          const a = shapes[i];
+          const b = shapes[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = a.radius + b.radius;
 
-    render.mouse = mouse;
+          if (dist > 0 && dist < minDist) {
+            const overlap = minDist - dist;
 
-    // 클릭 vs 드래그 구분용
-    let dragStartPos = null;
-    let dragStartBody = null;
+            const nx = dx / dist;
+            const ny = dy / dist;
 
-    Events.on(mouseConstraint, 'mousedown', () => {
-      if (mouseConstraint.body) {
-        dragStartBody = mouseConstraint.body;
-        const pos = mouse.position;
-        dragStartPos = { x: pos.x, y: pos.y };
-      } else {
-        dragStartBody = null;
-        dragStartPos = null;
-      }
-    });
+            // 포지션 분리 (반반씩 밀기)
+            a.x -= nx * overlap * 0.5;
+            a.y -= ny * overlap * 0.5;
+            b.x += nx * overlap * 0.5;
+            b.y += ny * overlap * 0.5;
 
-    Events.on(mouseConstraint, 'mouseup', () => {
-      if (!dragStartBody || !dragStartPos) return;
+            // 속도 교환 비슷하게 (간단한 탄성 충돌 느낌)
+            const relVx = b.vx - a.vx;
+            const relVy = b.vy - a.vy;
+            const relAlongNormal = relVx * nx + relVy * ny;
 
-      const endPos = mouse.position;
-      const dx = endPos.x - dragStartPos.x;
-      const dy = endPos.y - dragStartPos.y;
-      const distSq = dx * dx + dy * dy;
+            if (relAlongNormal < 0) {
+              const impulse = -(1.0) * relAlongNormal; // 탄성계수 ≈ 1
+              const ix = impulse * nx;
+              const iy = impulse * ny;
 
-      const CLICK_THRESHOLD = 20 * 20; // 20px 안이면 클릭으로 간주
-      const clickedBody = dragStartBody;
+              a.vx -= ix * 0.5;
+              a.vy -= iy * 0.5;
+              b.vx += ix * 0.5;
+              b.vy += iy * 0.5;
 
-      dragStartBody = null;
-      dragStartPos = null;
-
-      if (distSq <= CLICK_THRESHOLD) {
-        const workId = clickedBody.workId;
-        if (workId) {
-          const work = works.find(w => w.id === workId);
-          if (work) {
-            showDetail(work);
+              a.vx *= damping;
+              a.vy *= damping;
+              b.vx *= damping;
+              b.vy *= damping;
+            }
           }
         }
       }
-    });
+    }
 
-    // ===== 6. 상세 패널 열고 닫기 =====
+    // ===== 렌더링 =====
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const s of shapes) {
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.fill();
+
+        // 간단한 텍스트 라벨 (작업 번호 느낌)
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.font = '500 13px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(s.id.replace('work-', '#'), s.x, s.y);
+      }
+    }
+
+    function loop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.03); // 30ms 이상은 컷
+      lastTime = timestamp;
+
+      if (shapes.length > 0) {
+        update(dt);
+        draw();
+      } else {
+        // 아무것도 없으면 그냥 흰 화면 유지
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ===== 상세 패널 =====
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
@@ -360,35 +333,120 @@
       detailMeta.textContent = work.meta || '';
       detailPanel.classList.add('open');
     }
-
     function hideDetail() {
       detailPanel.classList.remove('open');
     }
-
     detailClose.addEventListener('click', hideDetail);
-    // 패널 영역 밖 클릭하면 닫히도록 하고 싶으면 여기 로직 추가 가능
 
-    // ===== 7. 첫 클릭 시 우르르 떨어지게 =====
+    // ===== 마우스 / 드래그 & 클릭 구분 =====
+    let isMouseDown = false;
+    let dragTarget = null;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    let mouseDownTime = 0;
+    let mouseMovedDistSq = 0;
+
+    function getShapeAt(x, y) {
+      // 위에 있는 것부터 잡고 싶으면 뒤에서부터 검사
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        const s = shapes[i];
+        const dx = x - s.x;
+        const dy = y - s.y;
+        if (dx * dx + dy * dy <= s.radius * s.radius) {
+          return s;
+        }
+      }
+      return null;
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      isMouseDown = true;
+      lastMouseX = x;
+      lastMouseY = y;
+      mouseDownTime = performance.now();
+      mouseMovedDistSq = 0;
+
+      const s = getShapeAt(x, y);
+      if (s) {
+        dragTarget = s;
+        dragOffsetX = x - s.x;
+        dragOffsetY = y - s.y;
+      } else {
+        dragTarget = null;
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isMouseDown || !dragTarget) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const dx = x - lastMouseX;
+      const dy = y - lastMouseY;
+
+      mouseMovedDistSq += dx * dx + dy * dy;
+
+      // 드래그 중인 도형 위치 이동
+      const oldX = dragTarget.x;
+      const oldY = dragTarget.y;
+      dragTarget.x = x - dragOffsetX;
+      dragTarget.y = y - dragOffsetY;
+
+      // 움직이는 방향으로 속도 부여 (놓았을 때 관성)
+      dragTarget.vx = (dragTarget.x - oldX) * 60; // 대략적인 스케일
+      dragTarget.vy = (dragTarget.y - oldY) * 60;
+
+      lastMouseX = x;
+      lastMouseY = y;
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const elapsed = performance.now() - mouseDownTime;
+      const CLICK_DIST_SQ = 10 * 10; // 10px 이하 움직임이면 클릭으로 간주
+      const CLICK_TIME = 300;        // 300ms 안이면 클릭
+
+      const clickedShape = dragTarget || getShapeAt(x, y);
+
+      // 드래그 종료
+      dragTarget = null;
+
+      // “거의 안 움직였고, 빠르게 눌렀다 떼면” → 클릭으로 처리
+      if (clickedShape && mouseMovedDistSq <= CLICK_DIST_SQ && elapsed <= CLICK_TIME) {
+        showDetail(clickedShape.work);
+      }
+    });
+
+    // 드래그 중 캔버스 밖으로 나갔다가 들어오는 케이스 방지
+    window.addEventListener('mouseup', () => {
+      isMouseDown = false;
+      dragTarget = null;
+    });
+
+    // ===== 첫 클릭 시 도형 떨어뜨리기 =====
     document.body.addEventListener('click', function handleFirstClick() {
       if (!hasSpawned) {
         hasSpawned = true;
         intro.classList.add('hidden');
-        spawnWorks();
+        spawnShapes();
       }
-      // 한 번만 실행되도록 제거
+      // 이후부터는 이 핸들러 필요 없으니 제거
       document.body.removeEventListener('click', handleFirstClick);
-    });
-
-    // ===== 8. 리사이즈 대응 (간단 버전) =====
-    window.addEventListener('resize', () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      render.canvas.width = width;
-      render.canvas.height = height;
-      render.options.width = width;
-      render.options.height = height;
-      createBoundaries();
-    });
+    }, { once: true });
   </script>
 </body>
 </html>
