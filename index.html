@@ -14,8 +14,6 @@
     canvas {
       position: fixed; inset: 0; display: block;
       background: #ffffff; touch-action: none;
-      /* 캔버스가 고해상도에서 흐릿해지지 않게 크기 고정 */
-      width: 100%; height: 100%;
     }
     #intro {
       position: fixed; inset: 0;
@@ -99,46 +97,155 @@
     const detailMeta = document.getElementById('detailMeta');
     const detailClose = document.getElementById('detailClose');
 
-    // ===============================================
-    // [수정됨] 고해상도(Retina) 디스플레이 대응 리사이징
-    // ===============================================
     function resize() {
-      const dpr = window.devicePixelRatio || 1;
-      // 캔버스 실제 픽셀 수를 화면 배율만큼 늘려줌
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      
-      // CSS 스타일 크기는 그대로 유지
-      canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = window.innerHeight + 'px';
-      
-      // 모든 그림을 그릴 때 배율 적용
-      ctx.scale(dpr, dpr);
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
     window.addEventListener('resize', resize);
     resize();
 
     const isMobile = () => window.innerWidth <= 900;
 
-    // 작업 데이터
+    // ==========================================
+    // ===== [수정됨] 17개 작업 데이터 리스트 =====
+    // ==========================================
     const works = [
-      { id: 'work-1', title: '작업물 1', tag: 'Graphic / 2024', description: '작업물 1 설명', meta: 'Photoshop', imageSrc: './icon/Artboard 1.png' },
-      { id: 'work-2', title: '작업물 2', tag: 'Web / 2024', description: '작업물 2 설명', meta: 'HTML/CSS', imageSrc: './icon/Artboard 26.png' },
-      { id: 'work-3', title: '작업물 3', tag: 'Branding / 2023', description: '작업물 3 설명', meta: 'Illustrator', imageSrc: './icon/Artboard 27.png' },
-      { id: 'work-4', title: '작업물 4', tag: 'Editorial / 2023', description: '작업물 4 설명', meta: 'InDesign', imageSrc: './icon/Artboard 28.png' },
-      { id: 'work-5', title: '작업물 5', tag: 'Motion / 2024', description: '작업물 5 설명', meta: 'After Effects', imageSrc: './icon/Artboard 29.png' },
-      { id: 'work-6', title: '작업물 6', tag: 'UI/UX / 2024', description: '작업물 6 설명', meta: 'Figma', imageSrc: './icon/Artboard 30.png' },
-      { id: 'work-7', title: '작업물 7', tag: '3D / 2024', description: '작업물 7 설명', meta: 'Blender', imageSrc: './icon/Artboard 31.png' },
-      { id: 'work-8', title: '작업물 8', tag: 'Graphic / 2023', description: '작업물 8 설명', meta: 'Photoshop', imageSrc: './icon/Artboard 32.png' },
-      { id: 'work-9', title: '작업물 9', tag: 'Web / 2023', description: '작업물 9 설명', meta: 'Javascript', imageSrc: './icon/Artboard 33.png' },
-      { id: 'work-10', title: '작업물 10', tag: 'Photo / 2024', description: '작업물 10 설명', meta: 'Lightroom', imageSrc: './icon/Artboard 34.png' },
-      { id: 'work-11', title: '작업물 11', tag: 'Drawing / 2022', description: '작업물 11 설명', meta: 'Procreate', imageSrc: './icon/Artboard 35.png' },
-      { id: 'work-12', title: '작업물 12', tag: 'Package / 2023', description: '작업물 12 설명', meta: 'Illustrator', imageSrc: './icon/Artboard 36.png' },
-      { id: 'work-13', title: '작업물 13', tag: 'Video / 2024', description: '작업물 13 설명', meta: 'Premiere Pro', imageSrc: './icon/Artboard 37.png' },
-      { id: 'work-14', title: '작업물 14', tag: 'Poster / 2023', description: '작업물 14 설명', meta: 'Photoshop', imageSrc: './icon/Artboard 38.png' },
-      { id: 'work-15', title: '작업물 15', tag: 'Logo / 2022', description: '작업물 15 설명', meta: 'Illustrator', imageSrc: './icon/Artboard 39.png' },
-      { id: 'work-16', title: '작업물 16', tag: 'Character / 2024', description: '작업물 16 설명', meta: 'Blender', imageSrc: './icon/Artboard 40.png' },
-      { id: 'work-17', title: '작업물 17', tag: 'Interaction / 2025', description: '작업물 17 설명', meta: 'p5.js', imageSrc: './icon/Artboard 41.png' }
+      {
+        id: 'work-1',
+        title: '작업물 1',
+        tag: 'Graphic / 2024',
+        description: '작업물 1에 대한 설명입니다.',
+        meta: 'Photoshop',
+        imageSrc: './icon/Artboard 1.png'
+      },
+      {
+        id: 'work-2',
+        title: '작업물 2',
+        tag: 'Web / 2024',
+        description: '작업물 2에 대한 설명입니다.',
+        meta: 'HTML/CSS',
+        imageSrc: './icon/Artboard 26.png'
+      },
+      {
+        id: 'work-3',
+        title: '작업물 3',
+        tag: 'Branding / 2023',
+        description: '작업물 3에 대한 설명입니다.',
+        meta: 'Illustrator',
+        imageSrc: './icon/Artboard 27.png'
+      },
+      {
+        id: 'work-4',
+        title: '작업물 4',
+        tag: 'Editorial / 2023',
+        description: '작업물 4에 대한 설명입니다.',
+        meta: 'InDesign',
+        imageSrc: './icon/Artboard 28.png'
+      },
+      {
+        id: 'work-5',
+        title: '작업물 5',
+        tag: 'Motion / 2024',
+        description: '작업물 5에 대한 설명입니다.',
+        meta: 'After Effects',
+        imageSrc: './icon/Artboard 29.png'
+      },
+      {
+        id: 'work-6',
+        title: '작업물 6',
+        tag: 'UI/UX / 2024',
+        description: '작업물 6에 대한 설명입니다.',
+        meta: 'Figma',
+        imageSrc: './icon/Artboard 30.png'
+      },
+      {
+        id: 'work-7',
+        title: '작업물 7',
+        tag: '3D / 2024',
+        description: '작업물 7에 대한 설명입니다.',
+        meta: 'Blender',
+        imageSrc: './icon/Artboard 31.png'
+      },
+      {
+        id: 'work-8',
+        title: '작업물 8',
+        tag: 'Graphic / 2023',
+        description: '작업물 8에 대한 설명입니다.',
+        meta: 'Photoshop',
+        imageSrc: './icon/Artboard 32.png'
+      },
+      {
+        id: 'work-9',
+        title: '작업물 9',
+        tag: 'Web / 2023',
+        description: '작업물 9에 대한 설명입니다.',
+        meta: 'Javascript',
+        imageSrc: './icon/Artboard 33.png'
+      },
+      {
+        id: 'work-10',
+        title: '작업물 10',
+        tag: 'Photo / 2024',
+        description: '작업물 10에 대한 설명입니다.',
+        meta: 'Lightroom',
+        imageSrc: './icon/Artboard 34.png'
+      },
+      {
+        id: 'work-11',
+        title: '작업물 11',
+        tag: 'Drawing / 2022',
+        description: '작업물 11에 대한 설명입니다.',
+        meta: 'Procreate',
+        imageSrc: './icon/Artboard 35.png'
+      },
+      {
+        id: 'work-12',
+        title: '작업물 12',
+        tag: 'Package / 2023',
+        description: '작업물 12에 대한 설명입니다.',
+        meta: 'Illustrator',
+        imageSrc: './icon/Artboard 36.png'
+      },
+      {
+        id: 'work-13',
+        title: '작업물 13',
+        tag: 'Video / 2024',
+        description: '작업물 13에 대한 설명입니다.',
+        meta: 'Premiere Pro',
+        imageSrc: './icon/Artboard 37.png'
+      },
+      {
+        id: 'work-14',
+        title: '작업물 14',
+        tag: 'Poster / 2023',
+        description: '작업물 14에 대한 설명입니다.',
+        meta: 'Photoshop',
+        imageSrc: './icon/Artboard 38.png'
+      },
+      {
+        id: 'work-15',
+        title: '작업물 15',
+        tag: 'Logo / 2022',
+        description: '작업물 15에 대한 설명입니다.',
+        meta: 'Illustrator',
+        imageSrc: './icon/Artboard 39.png'
+      },
+      {
+        id: 'work-16',
+        title: '작업물 16',
+        tag: 'Character / 2024',
+        description: '작업물 16에 대한 설명입니다.',
+        meta: 'Blender',
+        imageSrc: './icon/Artboard 40.png'
+      },
+      {
+        id: 'work-17',
+        title: '작업물 17',
+        tag: 'Interaction / 2025',
+        description: '작업물 17에 대한 설명입니다.',
+        meta: 'p5.js',
+        imageSrc: './icon/Artboard 41.png'
+      }
     ];
 
     // ===== 이미지 프리로드 =====
@@ -147,17 +254,27 @@
     let allImagesLoaded = false;
 
     function preloadImages(callback) {
-      if (works.length === 0) { callback(); return; }
+      if (works.length === 0) {
+        callback(); 
+        return;
+      }
       works.forEach(work => {
         const img = new Image();
         img.onload = () => {
           imagesLoadedCount++;
-          if (imagesLoadedCount === works.length) { allImagesLoaded = true; callback(); }
+          if (imagesLoadedCount === works.length) {
+            allImagesLoaded = true;
+            callback();
+          }
         };
         img.onerror = () => {
           console.error(`이미지 로드 실패: ${work.imageSrc}`);
+          // 에러가 나도 진행되도록 카운트 올림
           imagesLoadedCount++;
-          if (imagesLoadedCount === works.length) { allImagesLoaded = true; callback(); }
+          if (imagesLoadedCount === works.length) {
+            allImagesLoaded = true;
+            callback();
+          }
         };
         img.src = work.imageSrc;
         loadedImages[work.id] = img;
@@ -172,16 +289,19 @@
     const restitution = 0.5;
     let lastTime = null;
 
+    // [수정] 깨끗하게 정리된 생성 함수
     function spawnShapes() {
       if (!allImagesLoaded) return;
-      // 논리적 픽셀 기준 크기 사용
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = canvas.width;
+      const h = canvas.height;
       shapes.length = 0;
 
       const mobile = isMobile();
+      
+      // works 데이터의 개수(17개)만큼 생성
       const count = works.length; 
       
+      // 개수가 많으므로 모바일에서는 원 크기를 조금 줄임
       const baseRadius = mobile ? 50 : 40;
       const radiusRange = mobile ? 30 : 25;
 
@@ -204,9 +324,8 @@
     }
 
     function update(dt) {
-      // 논리적 픽셀 기준
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = canvas.width;
+      const h = canvas.height;
 
       for (const s of shapes) {
         if (!s.isDragging) {
@@ -215,12 +334,14 @@
           s.y += s.vy * dt;
         }
 
+        // 벽 충돌
         if (s.x - s.radius < 0) { s.x = s.radius; if(s.vx < 0) s.vx = -s.vx * damping; }
         if (s.x + s.radius > w) { s.x = w - s.radius; if(s.vx > 0) s.vx = -s.vx * damping; }
         if (s.y + s.radius > h) { s.y = h - s.radius; if(s.vy > 0) s.vy = -s.vy * damping; }
         if (s.y - s.radius < 0) { s.y = s.radius; if(s.vy < 0) s.vy = -s.vy * damping; }
       }
 
+      // 상호 충돌
       for (let i = 0; i < shapes.length; i++) {
         for (let j = i + 1; j < shapes.length; j++) {
           const a = shapes[i];
@@ -235,6 +356,7 @@
             const nx = dx / dist;
             const ny = dy / dist;
 
+            // 드래그 중인 물체 처리
             if (a.isDragging && !b.isDragging) {
               b.x += nx * overlap; b.y += ny * overlap;
               b.vx += nx * overlap*5; b.vy += ny * overlap*5;
@@ -246,6 +368,7 @@
               continue;
             }
 
+            // 일반 충돌 반발
             a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
             b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
 
@@ -267,11 +390,11 @@
     }
 
     function draw() {
-      // 논리적 픽셀 기준 clear
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const mobile = isMobile();
 
       for (const s of shapes) {
-        // [수정됨] 글자 그리는 부분 삭제하고 이미지만 그리기
+        // 이미지 그리기
         if (s.image && s.image.complete) {
           ctx.drawImage(
             s.image,
@@ -281,12 +404,24 @@
             s.radius * 2
           );
         } else {
+          // 이미지 없으면 회색 원
           ctx.beginPath();
           ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
           ctx.fillStyle = '#ccc';
           ctx.fill();
         }
-        // 여기 있던 fillText 코드를 모두 제거했습니다.
+
+        // 텍스트 그리기
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.font = mobile ? '700 20px system-ui' : '600 14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(s.work.title, s.x, s.y); 
+        
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
       }
     }
 
@@ -385,6 +520,7 @@
       isPointerDown = false;
       const elapsed = performance.now() - pointerDownTime;
 
+      // 놓을 때 속도 부여
       if (dragTarget && dragHistory.length >= 2) {
         dragTarget.isDragging = false;
         const a = dragHistory[dragHistory.length - 2];
@@ -396,6 +532,7 @@
         }
       }
 
+      // 클릭 판정
       let clicked = dragTarget || getShapeAt(x, y);
       if (!dragTarget) clicked = getShapeAt(x, y); 
       
@@ -406,7 +543,7 @@
       dragHistory = [];
     }
 
-    // 마우스/터치 리스너
+    // 마우스/터치 리스너 연결
     ['mousedown','touchstart'].forEach(evt => 
       canvas.addEventListener(evt, e => {
         e.preventDefault();
