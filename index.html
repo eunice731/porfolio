@@ -2,186 +2,94 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall (Strong Mobile Version)</title>
+  <title>Portfolio Physics Wall</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
+      margin: 0; padding: 0; width: 100%; height: 100%;
       overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #ffffff;
     }
     canvas {
-      position: fixed;
-      inset: 0;
-      display: block;
-      background: #ffffff;
-      touch-action: none; /* 모바일에서 기본 스크롤/줌 방지 */
+      position: fixed; inset: 0; display: block;
+      background: #ffffff; touch-action: none;
     }
-
     #intro {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       pointer-events: none;
-      font-size: 1.05rem;
-      color: #999;
-      text-align: center;
-      padding: 0 16px;
-      transition: opacity 0.3s ease;
-      z-index: 5;
-      line-height: 1.6;
+      font-size: 1.05rem; color: #999; text-align: center;
+      padding: 0 16px; transition: opacity 0.3s ease;
+      z-index: 5; line-height: 1.6;
     }
-    #intro.hidden {
-      opacity: 0;
-    }
+    #intro.hidden { opacity: 0; }
 
-    /* 가운데 모달용 오버레이 */
+    /* 상세 모달 스타일 */
     .detail-overlay {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       background: rgba(0,0,0,0.25);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
       z-index: 10;
     }
-    .detail-overlay.open {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
+    .detail-overlay.open { opacity: 1; pointer-events: auto; }
     .detail-modal {
-      width: min(480px, 80vw);
-      max-height: min(70vh, 90vh);
-      background: rgba(255,255,255,0.98);
-      border-radius: 16px;
+      width: min(480px, 80vw); max-height: min(70vh, 90vh);
+      background: rgba(255,255,255,0.98); border-radius: 16px;
       box-shadow: 0 18px 45px rgba(0,0,0,0.22);
-      padding: 20px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      padding: 20px 18px; display: flex; flex-direction: column; gap: 12px;
       animation: pop-in 0.22s ease-out;
     }
-
     @keyframes pop-in {
-      from {
-        transform: translateY(6px) scale(0.96);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-      }
+      from { transform: translateY(6px) scale(0.96); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
     }
-
-    .detail-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-    }
-    .detail-title {
-      font-size: 1.05rem;
-      font-weight: 600;
-    }
-    .detail-tag {
-      font-size: 0.8rem;
-      color: #777;
-      margin-top: 4px;
-    }
+    .detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .detail-title { font-size: 1.05rem; font-weight: 600; }
+    .detail-tag { font-size: 0.8rem; color: #777; margin-top: 4px; }
     .detail-close {
-      border: none;
-      background: transparent;
-      font-size: 1.3rem;
-      line-height: 1;
-      cursor: pointer;
-      padding: 4px 6px;
-      margin: -4px -4px 0 0;
+      border: none; background: transparent; font-size: 1.3rem;
+      line-height: 1; cursor: pointer; padding: 4px 6px; margin: -4px -4px 0 0;
     }
-    .detail-body {
-      font-size: 0.9rem;
-      color: #444;
-      line-height: 1.6;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-    .detail-meta {
-      font-size: 0.78rem;
-      color: #999;
-      margin-top: 4px;
-    }
+    .detail-body { font-size: 0.9rem; color: #444; line-height: 1.6; overflow-y: auto; padding-right: 4px; }
+    .detail-meta { font-size: 0.78rem; color: #999; margin-top: 4px; }
 
-    /* ====== 모바일(좁은 화면)에서 확실히 크게 ====== */
     @media (max-width: 900px) {
-      #intro {
-        font-size: 1.3rem;
-        padding: 0 28px;
-      }
-      .detail-modal {
-        width: 94vw;
-        max-height: 80vh;
-        border-radius: 18px;
-        padding: 22px 20px;
-      }
-      .detail-title {
-        font-size: 1.35rem;
-      }
-      .detail-tag {
-        font-size: 0.95rem;
-      }
-      .detail-body {
-        font-size: 1.05rem;
-      }
-      .detail-meta {
-        font-size: 0.9rem;
-      }
-      .detail-close {
-        font-size: 1.6rem;
-      }
+      #intro { font-size: 1.3rem; padding: 0 28px; }
+      .detail-modal { width: 94vw; max-height: 80vh; border-radius: 18px; padding: 22px 20px; }
+      .detail-title { font-size: 1.35rem; }
+      .detail-tag { font-size: 0.95rem; }
+      .detail-body { font-size: 1.05rem; }
+      .detail-meta { font-size: 0.9rem; }
+      .detail-close { font-size: 1.6rem; }
     }
   </style>
 </head>
 <body>
   <canvas id="canvas"></canvas>
-  <div id="intro">
-    어디든 한 번 탭/클릭하면 작업들이 우르르 떨어집니다.<br />
-    도형을 드래그해서 움직이고, 톡 클릭하면 설명이 떠요.
-  </div>
+  <div id="intro">이미지 로딩 중... 잠시만 기다려주세요.</div>
 
-  <!-- 중앙 모달 오버레이 -->
   <div class="detail-overlay" id="detailOverlay">
     <div class="detail-modal">
       <div class="detail-header">
         <div>
-          <div class="detail-title" id="detailTitle">작업 제목</div>
-          <div class="detail-tag" id="detailTag">카테고리 / 연도</div>
+          <div class="detail-title" id="detailTitle"></div>
+          <div class="detail-tag" id="detailTag"></div>
         </div>
-        <button class="detail-close" id="detailClose" aria-label="닫기">×</button>
+        <button class="detail-close" id="detailClose">×</button>
       </div>
-      <div class="detail-body" id="detailBody">
-        여기에 작업 설명이 들어갑니다.
-      </div>
+      <div class="detail-body" id="detailBody"></div>
       <div class="detail-meta" id="detailMeta"></div>
     </div>
   </div>
 
   <script>
-    // ===== 캔버스 / 기본 세팅 =====
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
-
+    
+    // 모달 관련 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -196,106 +104,239 @@
     window.addEventListener('resize', resize);
     resize();
 
-    const MOBILE_BREAKPOINT = 900;
-    const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
+    const isMobile = () => window.innerWidth <= 900;
 
-    // ===== 작업 데이터 =====
+    // ==========================================
+    // ===== [여기만 고치세요] 작업 데이터 =====
+    // ==========================================
+    // 1. imageSrc 부분을 실제 업로드한 파일 이름으로 바꿔주세요.
+    // 2. 만약 파일이 더 많으면 { ... }, 덩어리를 복사해서 추가하면 됩니다.
+    // ==========================================
+  // ==========================================
+    // ===== [수정] 17개 작업 데이터 리스트 =====
+    // ==========================================
     const works = [
       {
         id: 'work-1',
-        title: '포스터 시리즈 A',
+        title: '작업물 1',
         tag: 'Graphic / 2024',
-        description: '굵은 타이포와 제한된 컬러 팔레트로 리듬을 만든 포스터 시리즈입니다.',
-        meta: 'Size: 700×1000mm · Tool: Photoshop, Illustrator'
+        description: '작업물 1에 대한 설명입니다.',
+        meta: 'Photoshop',
+        imageSrc: './icon/Artboard 1.png'
       },
       {
         id: 'work-2',
-        title: '웹 인터랙션 실험',
-        tag: 'Interactive / 2025',
-        description: '스크롤과 물리 기반 움직임을 결합한 인터랙티브 웹 실험입니다.',
-        meta: 'Prototype · HTML/CSS/JS'
+        title: '작업물 2',
+        tag: 'Web / 2024',
+        description: '작업물 2에 대한 설명입니다.',
+        meta: 'HTML/CSS',
+        imageSrc: './icon/Artboard 26.png'
       },
       {
         id: 'work-3',
-        title: '브랜딩 콘셉트 B',
+        title: '작업물 3',
         tag: 'Branding / 2023',
-        description: '소셜 이슈와 연결된 브랜드 톤앤매너를 시각 언어로 정리한 프로젝트입니다.',
-        meta: 'Logo · Stationery · SNS kit'
+        description: '작업물 3에 대한 설명입니다.',
+        meta: 'Illustrator',
+        imageSrc: './icon/Artboard 27.png'
       },
       {
         id: 'work-4',
-        title: '에디토리얼 레이아웃',
+        title: '작업물 4',
         tag: 'Editorial / 2023',
-        description: '텍스트 밀도가 높은 글을 읽기 쉽게 재배열한 에디토리얼 디자인입니다.',
-        meta: '80p · InDesign, Typography'
+        description: '작업물 4에 대한 설명입니다.',
+        meta: 'InDesign',
+        imageSrc: './icon/Artboard 28.png'
       },
       {
         id: 'work-5',
-        title: '동적 아이덴티티',
+        title: '작업물 5',
         tag: 'Motion / 2024',
-        description: '로고와 모션 그래픽을 묶어 시스템 형태로 구성한 아이덴티티 실험입니다.',
-        meta: 'Motion System · After Effects'
+        description: '작업물 5에 대한 설명입니다.',
+        meta: 'After Effects',
+        imageSrc: './icon/Artboard 29.png'
+      },
+      {
+        id: 'work-6',
+        title: '작업물 6',
+        tag: 'UI/UX / 2024',
+        description: '작업물 6에 대한 설명입니다.',
+        meta: 'Figma',
+        imageSrc: './icon/Artboard 30.png'
+      },
+      {
+        id: 'work-7',
+        title: '작업물 7',
+        tag: '3D / 2024',
+        description: '작업물 7에 대한 설명입니다.',
+        meta: 'Blender',
+        imageSrc: './icon/Artboard 31.png'
+      },
+      {
+        id: 'work-8',
+        title: '작업물 8',
+        tag: 'Graphic / 2023',
+        description: '작업물 8에 대한 설명입니다.',
+        meta: 'Photoshop',
+        imageSrc: './icon/Artboard 32.png'
+      },
+      {
+        id: 'work-9',
+        title: '작업물 9',
+        tag: 'Web / 2023',
+        description: '작업물 9에 대한 설명입니다.',
+        meta: 'Javascript',
+        imageSrc: './icon/Artboard 33.png'
+      },
+      {
+        id: 'work-10',
+        title: '작업물 10',
+        tag: 'Photo / 2024',
+        description: '작업물 10에 대한 설명입니다.',
+        meta: 'Lightroom',
+        imageSrc: './icon/Artboard 34.png'
+      },
+      {
+        id: 'work-11',
+        title: '작업물 11',
+        tag: 'Drawing / 2022',
+        description: '작업물 11에 대한 설명입니다.',
+        meta: 'Procreate',
+        imageSrc: './icon/Artboard 35.png'
+      },
+      {
+        id: 'work-12',
+        title: '작업물 12',
+        tag: 'Package / 2023',
+        description: '작업물 12에 대한 설명입니다.',
+        meta: 'Illustrator',
+        imageSrc: './icon/Artboard 36.png'
+      },
+      {
+        id: 'work-13',
+        title: '작업물 13',
+        tag: 'Video / 2024',
+        description: '작업물 13에 대한 설명입니다.',
+        meta: 'Premiere Pro',
+        imageSrc: './icon/Artboard 37.png'
+      },
+      {
+        id: 'work-14',
+        title: '작업물 14',
+        tag: 'Poster / 2023',
+        description: '작업물 14에 대한 설명입니다.',
+        meta: 'Photoshop',
+        imageSrc: './icon/Artboard 38.png'
+      },
+      {
+        id: 'work-15',
+        title: '작업물 15',
+        tag: 'Logo / 2022',
+        description: '작업물 15에 대한 설명입니다.',
+        meta: 'Illustrator',
+        imageSrc: './icon/Artboard 39.png'
+      },
+      {
+        id: 'work-16',
+        title: '작업물 16',
+        tag: 'Character / 2024',
+        description: '작업물 16에 대한 설명입니다.',
+        meta: 'Blender',
+        imageSrc: './icon/Artboard 40.png'
+      },
+      {
+        id: 'work-17',
+        title: '작업물 17',
+        tag: 'Interaction / 2025',
+        description: '작업물 17에 대한 설명입니다.',
+        meta: 'p5.js',
+        imageSrc: './icon/Artboard 41.png'
       }
     ];
+    // ==========================================
 
-    // ===== 도형 배열 =====
-    const shapes = [];
-    let hasSpawned = false;
 
-    function randomColor() {
-      const palette = [
-        '#f6a5c0',
-        '#9ad0f5',
-        '#f9dd8a',
-        '#c3f0b8',
-        '#d1b2ff',
-        '#ffd6a5',
-        '#bdb2ff',
-        '#ffc6ff'
-      ];
-      return palette[Math.floor(Math.random() * palette.length)];
+    // ===== 이미지 프리로드 =====
+    const loadedImages = {};
+    let imagesLoadedCount = 0;
+    let allImagesLoaded = false;
+
+    function preloadImages(callback) {
+      if (works.length === 0) {
+        callback(); 
+        return;
+      }
+      works.forEach(work => {
+        const img = new Image();
+        img.onload = () => {
+          imagesLoadedCount++;
+          if (imagesLoadedCount === works.length) {
+            allImagesLoaded = true;
+            callback();
+          }
+        };
+        img.onerror = () => {
+          console.error(`이미지 로드 실패: ${work.imageSrc}`);
+          // 에러나도 멈추지 않게 카운트 올림
+          imagesLoadedCount++;
+          if (imagesLoadedCount === works.length) {
+            allImagesLoaded = true;
+            callback();
+          }
+        };
+        img.src = work.imageSrc;
+        loadedImages[work.id] = img;
+      });
     }
 
-    function spawnShapes() {
+    // ===== 물리 엔진 및 렌더링 =====
+    const shapes = [];
+    let hasSpawned = false;
+    const gravity = 800;
+    const damping = 0.8;
+    const restitution = 0.5;
+    let lastTime = null;
+
+      function spawnShapes() {
+      if (!allImagesLoaded) return;
       const w = canvas.width;
       const h = canvas.height;
       shapes.length = 0;
 
       const mobile = isMobile();
+      
+      // ▼▼▼ [여기 수정] 원래 있던 숫자 대신 works.length를 쓰면 개수에 딱 맞게 나옵니다!
+      const count = works.length; 
+      // ▲▲▲
+      
+      // (혹시 모바일에서 17개가 너무 많아 렉이 걸린다면 'mobile ? 10 : works.length' 처럼 줄여도 됩니다)
 
-      // 모바일: 적게, 크게 / PC: 기존
-      const count = mobile ? 7 : 14;
+      const baseRadius = mobile ? 60 : 40; // 개수가 많아졌으니 모바일 원 크기를 살짝 줄이는 걸 추천 (80 -> 60)
+      // ... (나머지 코드는 그대로)
 
+      const mobile = isMobile();
+      // 모바일이면 7개, PC면 14개 생성 (원하면 숫자 수정 가능)
+      const count = mobile ? 7 : 14; 
       const baseRadius = mobile ? 80 : 40;
-      const radiusRange = mobile ? 40 : 25; // 모바일: 80~120, PC: 40~65
+      const radiusRange = mobile ? 40 : 25;
 
       for (let i = 0; i < count; i++) {
+        const work = works[i % works.length];
         const r = baseRadius + Math.random() * radiusRange;
         const x = r + Math.random() * (w - 2 * r);
         const y = -200 - Math.random() * 300;
-        const vx = (Math.random() - 0.5) * (mobile ? 40 : 60); // 모바일은 조금 더 느리게
-        const vy = 0;
-
-        const work = works[i % works.length];
+        const vx = (Math.random() - 0.5) * (mobile ? 40 : 60);
+        
         shapes.push({
           id: work.id,
-          x,
-          y,
-          vx,
-          vy,
+          x, y, vx, vy: 0,
           radius: r,
-          color: randomColor(),
+          image: loadedImages[work.id],
           work,
           isDragging: false
         });
       }
     }
-
-    // ===== 물리 업데이트 =====
-    const gravity = 800;
-    const damping = 0.8;
-    const restitution = 0.5;
-    let lastTime = null;
 
     function update(dt) {
       const w = canvas.width;
@@ -308,37 +349,21 @@
           s.y += s.vy * dt;
         }
 
-        // 좌우 벽
-        if (s.x - s.radius < 0) {
-          s.x = s.radius;
-          if (s.vx < 0) s.vx = -s.vx * damping;
-        }
-        if (s.x + s.radius > w) {
-          s.x = w - s.radius;
-          if (s.vx > 0) s.vx = -s.vx * damping;
-        }
-
-        // 바닥
-        if (s.y + s.radius > h) {
-          s.y = h - s.radius;
-          if (s.vy > 0) s.vy = -s.vy * damping;
-        }
-
-        // 천장
-        if (s.y - s.radius < 0) {
-          s.y = s.radius;
-          if (s.vy < 0) s.vy = -s.vy * damping;
-        }
+        // 벽 충돌
+        if (s.x - s.radius < 0) { s.x = s.radius; if(s.vx < 0) s.vx = -s.vx * damping; }
+        if (s.x + s.radius > w) { s.x = w - s.radius; if(s.vx > 0) s.vx = -s.vx * damping; }
+        if (s.y + s.radius > h) { s.y = h - s.radius; if(s.vy > 0) s.vy = -s.vy * damping; }
+        if (s.y - s.radius < 0) { s.y = s.radius; if(s.vy < 0) s.vy = -s.vy * damping; }
       }
 
-      // 도형 간 충돌
+      // 상호 충돌
       for (let i = 0; i < shapes.length; i++) {
         for (let j = i + 1; j < shapes.length; j++) {
           const a = shapes[i];
           const b = shapes[j];
           const dx = b.x - a.x;
           const dy = b.y - a.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const dist = Math.sqrt(dx*dx + dy*dy);
           const minDist = a.radius + b.radius;
 
           if (dist > 0 && dist < minDist) {
@@ -346,66 +371,72 @@
             const nx = dx / dist;
             const ny = dy / dist;
 
+            // 드래그 중인 물체 처리
             if (a.isDragging && !b.isDragging) {
-              b.x += nx * overlap;
-              b.y += ny * overlap;
-              b.vx += nx * overlap * 5;
-              b.vy += ny * overlap * 5;
+              b.x += nx * overlap; b.y += ny * overlap;
+              b.vx += nx * overlap*5; b.vy += ny * overlap*5;
               continue;
             }
             if (b.isDragging && !a.isDragging) {
-              a.x -= nx * overlap;
-              a.y -= ny * overlap;
-              a.vx -= nx * overlap * 5;
-              a.vy -= ny * overlap * 5;
+              a.x -= nx * overlap; a.y -= ny * overlap;
+              a.vx -= nx * overlap*5; a.vy -= ny * overlap*5;
               continue;
             }
 
-            a.x -= nx * overlap * 0.5;
-            a.y -= ny * overlap * 0.5;
-            b.x += nx * overlap * 0.5;
-            b.y += ny * overlap * 0.5;
+            // 일반 충돌 반발
+            a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
+            b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
 
             const relVx = b.vx - a.vx;
             const relVy = b.vy - a.vy;
             const relAlongNormal = relVx * nx + relVy * ny;
 
             if (relAlongNormal < 0) {
-              const jImpulse = -(1 + restitution) * relAlongNormal / 2;
-              const ix = jImpulse * nx;
-              const iy = jImpulse * ny;
-
-              a.vx -= ix;
-              a.vy -= iy;
-              b.vx += ix;
-              b.vy += iy;
-
-              a.vx *= damping;
-              a.vy *= damping;
-              b.vx *= damping;
-              b.vy *= damping;
+              const j = -(1 + restitution) * relAlongNormal / 2;
+              const ix = j * nx; const iy = j * ny;
+              a.vx -= ix; a.vy -= iy;
+              b.vx += ix; b.vy += iy;
+              a.vx *= damping; a.vy *= damping;
+              b.vx *= damping; b.vy *= damping;
             }
           }
         }
       }
     }
 
-    // ===== 렌더링 =====
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const mobile = isMobile();
 
       for (const s of shapes) {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-        ctx.fillStyle = s.color;
-        ctx.fill();
+        // 이미지 그리기 (마스킹 없이 원본 그대로)
+        if (s.image && s.image.complete) {
+          ctx.drawImage(
+            s.image,
+            s.x - s.radius,
+            s.y - s.radius,
+            s.radius * 2,
+            s.radius * 2
+          );
+        } else {
+          // 이미지 없으면 회색 원
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
+          ctx.fillStyle = '#ccc';
+          ctx.fill();
+        }
 
-        ctx.fillStyle = 'rgba(0,0,0,0.75)';
-        ctx.font = mobile ? '700 20px system-ui' : '500 13px system-ui';
+        // 텍스트 그리기
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.font = mobile ? '700 20px system-ui' : '600 14px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(s.id.replace('work-', '#'), s.x, s.y);
+        ctx.fillText(s.work.title, s.x, s.y); // 타이틀 표시
+        
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
       }
     }
 
@@ -417,58 +448,63 @@
       if (shapes.length > 0) {
         update(dt);
         draw();
-      } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-
       requestAnimationFrame(loop);
     }
-    requestAnimationFrame(loop);
 
-    // ===== 상세 모달 =====
+    // ===== 초기화 및 이벤트 =====
+    function onImagesReady() {
+      intro.innerHTML = '화면을 탭하면 아이콘들이 떨어집니다.<br>드래그하거나 클릭해보세요.';
+      
+      const start = () => {
+        if (!hasSpawned) {
+          hasSpawned = true;
+          intro.classList.add('hidden');
+          spawnShapes();
+        }
+      };
+      document.body.addEventListener('click', start, { once: true });
+      document.body.addEventListener('touchstart', start, { once: true, passive: true });
+      
+      requestAnimationFrame(loop);
+    }
+
+    preloadImages(onImagesReady);
+
+    // ===== 모달 제어 =====
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.description;
-      detailMeta.textContent = work.meta || '';
+      detailMeta.textContent = work.meta;
       detailOverlay.classList.add('open');
     }
-    function hideDetail() {
-      detailOverlay.classList.remove('open');
-    }
-
+    function hideDetail() { detailOverlay.classList.remove('open'); }
     detailClose.addEventListener('click', hideDetail);
-    detailOverlay.addEventListener('click', (e) => {
-      if (e.target === detailOverlay) hideDetail();
-    });
+    detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
 
-    // ===== 포인터(마우스 + 터치) 공통 상태 =====
+    // ===== 포인터 로직 (드래그 & 클릭) =====
     let isPointerDown = false;
     let dragTarget = null;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
-    let lastPointerX = 0;
-    let lastPointerY = 0;
-    let pointerDownTime = 0;
-    let pointerMovedDistSq = 0;
-    let dragHistory = []; // {x, y, t}
+    let dragOffsetX=0, dragOffsetY=0;
+    let lastPointerX=0, lastPointerY=0;
+    let pointerDownTime=0;
+    let pointerMovedDistSq=0;
+    let dragHistory = [];
 
     function getShapeAt(x, y) {
       for (let i = shapes.length - 1; i >= 0; i--) {
         const s = shapes[i];
         const dx = x - s.x;
         const dy = y - s.y;
-        if (dx * dx + dy * dy <= s.radius * s.radius) {
-          return s;
-        }
+        if (dx*dx + dy*dy <= s.radius * s.radius) return s;
       }
       return null;
     }
 
     function pointerDown(x, y) {
       isPointerDown = true;
-      lastPointerX = x;
-      lastPointerY = y;
+      lastPointerX = x; lastPointerY = y;
       pointerDownTime = performance.now();
       pointerMovedDistSq = 0;
       dragHistory = [];
@@ -479,144 +515,73 @@
         dragOffsetX = x - s.x;
         dragOffsetY = y - s.y;
         s.isDragging = true;
-      } else {
-        dragTarget = null;
       }
     }
 
     function pointerMove(x, y) {
       if (!isPointerDown || !dragTarget) return;
-
-      const dx = x - lastPointerX;
-      const dy = y - lastPointerY;
-      pointerMovedDistSq += dx * dx + dy * dy;
-
+      const dx = x - lastPointerX; const dy = y - lastPointerY;
+      pointerMovedDistSq += dx*dx + dy*dy;
       dragTarget.x = x - dragOffsetX;
       dragTarget.y = y - dragOffsetY;
-
-      lastPointerX = x;
-      lastPointerY = y;
-
-      const now = performance.now();
-      dragHistory.push({ x: dragTarget.x, y: dragTarget.y, t: now });
+      lastPointerX = x; lastPointerY = y;
+      
+      dragHistory.push({ x: dragTarget.x, y: dragTarget.y, t: performance.now() });
       if (dragHistory.length > 5) dragHistory.shift();
     }
 
     function pointerUp(x, y) {
       if (!isPointerDown) return;
       isPointerDown = false;
-
       const elapsed = performance.now() - pointerDownTime;
-      const CLICK_DIST_SQ = 10 * 10;
-      const CLICK_TIME = 300;
 
-      let clickedShape = dragTarget || getShapeAt(x, y || lastPointerX, y || lastPointerY);
-
-      if (dragTarget) {
+      // 놓을 때 속도 부여 (던지기 효과)
+      if (dragTarget && dragHistory.length >= 2) {
         dragTarget.isDragging = false;
-        if (dragHistory.length >= 2) {
-          const a = dragHistory[dragHistory.length - 2];
-          const b = dragHistory[dragHistory.length - 1];
-          const dtMs = b.t - a.t;
-          if (dtMs > 0) {
-            const dt = dtMs / 1000;
-            const vx = (b.x - a.x) / dt;
-            const vy = (b.y - a.y) / dt;
-            dragTarget.vx = vx * 0.9;
-            dragTarget.vy = vy * 0.9;
-          }
+        const a = dragHistory[dragHistory.length - 2];
+        const b = dragHistory[dragHistory.length - 1];
+        const dt = (b.t - a.t) / 1000;
+        if (dt > 0) {
+          dragTarget.vx = (b.x - a.x) / dt * 0.9;
+          dragTarget.vy = (b.y - a.y) / dt * 0.9;
         }
       }
 
+      // 클릭 판정 (조금만 움직이고 빨리 뗐을 때)
+      let clicked = dragTarget || getShapeAt(x, y);
+      if (!dragTarget) clicked = getShapeAt(x, y); // 드래그 안했어도 위치 확인
+      
+      if (clicked && pointerMovedDistSq < 100 && elapsed < 300) {
+        showDetail(clicked.work);
+      }
       dragTarget = null;
       dragHistory = [];
-
-      if (clickedShape && pointerMovedDistSq <= CLICK_DIST_SQ && elapsed <= CLICK_TIME) {
-        showDetail(clickedShape.work);
-      }
     }
 
-    // ===== 마우스 이벤트 =====
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      pointerDown(x, y);
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (!isPointerDown) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      pointerMove(x, y);
-    });
-
-    canvas.addEventListener('mouseup', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      pointerUp(x, y);
-    });
-
-    window.addEventListener('mouseup', () => {
-      if (dragTarget) dragTarget.isDragging = false;
-      isPointerDown = false;
-      dragTarget = null;
-      dragHistory = [];
-    });
-
-    // ===== 터치 이벤트 =====
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const touch = e.touches[0];
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      pointerDown(x, y);
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      if (!isPointerDown) return;
-      const rect = canvas.getBoundingClientRect();
-      const touch = e.touches[0];
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      pointerMove(x, y);
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      pointerUp(lastPointerX, lastPointerY);
-    }, { passive: false });
-
-    canvas.addEventListener('touchcancel', (e) => {
-      e.preventDefault();
-      if (dragTarget) dragTarget.isDragging = false;
-      isPointerDown = false;
-      dragTarget = null;
-      dragHistory = [];
-    }, { passive: false });
-
-    // ===== 첫 클릭/탭 시 도형 떨어뜨리기 =====
-    function handleFirstActivate() {
-      if (!hasSpawned) {
-        hasSpawned = true;
-        intro.classList.add('hidden');
-        spawnShapes();
-      }
-    }
-
-    document.body.addEventListener('click', function onceClick() {
-      handleFirstActivate();
-      document.body.removeEventListener('click', onceClick);
-    }, { once: true });
-
-    document.body.addEventListener('touchstart', function onceTouch() {
-      handleFirstActivate();
-      document.body.removeEventListener('touchstart', onceTouch);
-    }, { once: true, passive: true });
+    // 마우스/터치 리스너 연결
+    ['mousedown','touchstart'].forEach(evt => 
+      canvas.addEventListener(evt, e => {
+        e.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        const p = e.touches ? e.touches[0] : e;
+        pointerDown(p.clientX - r.left, p.clientY - r.top);
+      }, {passive:false})
+    );
+    ['mousemove','touchmove'].forEach(evt => 
+      canvas.addEventListener(evt, e => {
+        e.preventDefault();
+        if(!isPointerDown) return;
+        const r = canvas.getBoundingClientRect();
+        const p = e.touches ? e.touches[0] : e;
+        pointerMove(p.clientX - r.left, p.clientY - r.top);
+      }, {passive:false})
+    );
+    ['mouseup','touchend','touchcancel'].forEach(evt => 
+      canvas.addEventListener(evt, e => {
+        e.preventDefault();
+        pointerUp(lastPointerX, lastPointerY);
+      }, {passive:false})
+    );
   </script>
 </body>
 </html>
