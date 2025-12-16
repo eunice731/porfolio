@@ -134,7 +134,14 @@
         meta: 'Illustrator',
         imageSrc: './icon/Artboard 27.png'
       },
-    
+      {
+        id: 'work-4',
+        title: '작업물 4',
+        tag: 'Editorial / 2023',
+        description: '작업물 4 설명',
+        meta: 'InDesign',
+        imageSrc: './icon/Artboard 28.png'
+      },
       {
         id: 'work-5',
         title: '작업물 5',
@@ -232,7 +239,13 @@
         imageSrc: './icon/Artboard 40.png'
       },
       {
-       
+        id: 'work-17',
+        title: '작업물 17',
+        tag: 'Interaction / 2025',
+        description: '작업물 17 설명',
+        meta: 'p5.js',
+        imageSrc: './icon/Artboard 41.png'
+      }
     ];
 
     // ===== 이미지 프리로드 =====
@@ -256,7 +269,7 @@
         };
         img.onerror = () => {
           console.error(`이미지 로드 실패: ${work.imageSrc}`);
-          // 에러가 나도 진행되도록 카운트 올림
+          // 에러가 나도 진행되도록 카운트 올림 (그래야 멈추지 않음)
           imagesLoadedCount++;
           if (imagesLoadedCount === works.length) {
             allImagesLoaded = true;
@@ -276,7 +289,6 @@
     const restitution = 0.5;
     let lastTime = null;
 
-    // [수정] 깨끗하게 정리된 생성 함수
     function spawnShapes() {
       if (!allImagesLoaded) return;
       const w = canvas.width;
@@ -284,11 +296,8 @@
       shapes.length = 0;
 
       const mobile = isMobile();
-      
-      // works 데이터의 개수(17개)만큼 생성
       const count = works.length; 
       
-      // 개수가 많으므로 모바일에서는 원 크기를 조금 줄임
       const baseRadius = mobile ? 50 : 40;
       const radiusRange = mobile ? 30 : 25;
 
@@ -296,7 +305,7 @@
         const work = works[i % works.length];
         const r = baseRadius + Math.random() * radiusRange;
         const x = r + Math.random() * (w - 2 * r);
-        const y = -200 - Math.random() * 300;
+        const y = -200 - Math.random() * 300; // 화면 위쪽에서 생성
         const vx = (Math.random() - 0.5) * (mobile ? 40 : 60);
         
         shapes.push({
@@ -325,6 +334,9 @@
         if (s.x - s.radius < 0) { s.x = s.radius; if(s.vx < 0) s.vx = -s.vx * damping; }
         if (s.x + s.radius > w) { s.x = w - s.radius; if(s.vx > 0) s.vx = -s.vx * damping; }
         if (s.y + s.radius > h) { s.y = h - s.radius; if(s.vy > 0) s.vy = -s.vy * damping; }
+        
+        // [수정됨] 천장(화면 위쪽) 충돌 제거! 이제 위가 뚫려 있어서 잘 떨어집니다.
+        // if (s.y - s.radius < 0) { ... }  <-- 이 부분을 삭제했습니다.
       }
 
       // 상호 충돌
@@ -342,7 +354,6 @@
             const nx = dx / dist;
             const ny = dy / dist;
 
-            // 드래그 중인 물체 처리
             if (a.isDragging && !b.isDragging) {
               b.x += nx * overlap; b.y += ny * overlap;
               b.vx += nx * overlap*5; b.vy += ny * overlap*5;
@@ -354,7 +365,6 @@
               continue;
             }
 
-            // 일반 충돌 반발
             a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
             b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
 
@@ -380,8 +390,7 @@
       const mobile = isMobile();
 
       for (const s of shapes) {
-        // 이미지 그리기
-        if (s.image && s.image.complete) {
+        if (s.image && s.image.complete && s.image.naturalWidth !== 0) {
           ctx.drawImage(
             s.image,
             s.x - s.radius,
@@ -390,7 +399,7 @@
             s.radius * 2
           );
         } else {
-          // 이미지 없으면 회색 원
+          // 이미지가 없거나 로딩 실패 시 회색 원 표시
           ctx.beginPath();
           ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
           ctx.fillStyle = '#ccc';
