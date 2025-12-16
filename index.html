@@ -107,13 +107,7 @@
     const isMobile = () => window.innerWidth <= 900;
 
     // ==========================================
-    // ===== [여기만 고치세요] 작업 데이터 =====
-    // ==========================================
-    // 1. imageSrc 부분을 실제 업로드한 파일 이름으로 바꿔주세요.
-    // 2. 만약 파일이 더 많으면 { ... }, 덩어리를 복사해서 추가하면 됩니다.
-    // ==========================================
-  // ==========================================
-    // ===== [수정] 17개 작업 데이터 리스트 =====
+    // ===== [수정됨] 17개 작업 데이터 리스트 =====
     // ==========================================
     const works = [
       {
@@ -253,8 +247,6 @@
         imageSrc: './icon/Artboard 41.png'
       }
     ];
-    // ==========================================
-
 
     // ===== 이미지 프리로드 =====
     const loadedImages = {};
@@ -277,7 +269,7 @@
         };
         img.onerror = () => {
           console.error(`이미지 로드 실패: ${work.imageSrc}`);
-          // 에러나도 멈추지 않게 카운트 올림
+          // 에러가 나도 진행되도록 카운트 올림
           imagesLoadedCount++;
           if (imagesLoadedCount === works.length) {
             allImagesLoaded = true;
@@ -297,7 +289,8 @@
     const restitution = 0.5;
     let lastTime = null;
 
-      function spawnShapes() {
+    // [수정] 깨끗하게 정리된 생성 함수
+    function spawnShapes() {
       if (!allImagesLoaded) return;
       const w = canvas.width;
       const h = canvas.height;
@@ -305,20 +298,12 @@
 
       const mobile = isMobile();
       
-      // ▼▼▼ [여기 수정] 원래 있던 숫자 대신 works.length를 쓰면 개수에 딱 맞게 나옵니다!
+      // works 데이터의 개수(17개)만큼 생성
       const count = works.length; 
-      // ▲▲▲
       
-      // (혹시 모바일에서 17개가 너무 많아 렉이 걸린다면 'mobile ? 10 : works.length' 처럼 줄여도 됩니다)
-
-      const baseRadius = mobile ? 60 : 40; // 개수가 많아졌으니 모바일 원 크기를 살짝 줄이는 걸 추천 (80 -> 60)
-      // ... (나머지 코드는 그대로)
-
-      const mobile = isMobile();
-      // 모바일이면 7개, PC면 14개 생성 (원하면 숫자 수정 가능)
-      const count = mobile ? 7 : 14; 
-      const baseRadius = mobile ? 80 : 40;
-      const radiusRange = mobile ? 40 : 25;
+      // 개수가 많으므로 모바일에서는 원 크기를 조금 줄임
+      const baseRadius = mobile ? 50 : 40;
+      const radiusRange = mobile ? 30 : 25;
 
       for (let i = 0; i < count; i++) {
         const work = works[i % works.length];
@@ -409,7 +394,7 @@
       const mobile = isMobile();
 
       for (const s of shapes) {
-        // 이미지 그리기 (마스킹 없이 원본 그대로)
+        // 이미지 그리기
         if (s.image && s.image.complete) {
           ctx.drawImage(
             s.image,
@@ -433,7 +418,7 @@
         ctx.font = mobile ? '700 20px system-ui' : '600 14px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(s.work.title, s.x, s.y); // 타이틀 표시
+        ctx.fillText(s.work.title, s.x, s.y); 
         
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
@@ -535,7 +520,7 @@
       isPointerDown = false;
       const elapsed = performance.now() - pointerDownTime;
 
-      // 놓을 때 속도 부여 (던지기 효과)
+      // 놓을 때 속도 부여
       if (dragTarget && dragHistory.length >= 2) {
         dragTarget.isDragging = false;
         const a = dragHistory[dragHistory.length - 2];
@@ -547,9 +532,9 @@
         }
       }
 
-      // 클릭 판정 (조금만 움직이고 빨리 뗐을 때)
+      // 클릭 판정
       let clicked = dragTarget || getShapeAt(x, y);
-      if (!dragTarget) clicked = getShapeAt(x, y); // 드래그 안했어도 위치 확인
+      if (!dragTarget) clicked = getShapeAt(x, y); 
       
       if (clicked && pointerMovedDistSq < 100 && elapsed < 300) {
         showDetail(clicked.work);
