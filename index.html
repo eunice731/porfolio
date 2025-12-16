@@ -325,7 +325,6 @@
         if (s.x - s.radius < 0) { s.x = s.radius; if(s.vx < 0) s.vx = -s.vx * damping; }
         if (s.x + s.radius > w) { s.x = w - s.radius; if(s.vx > 0) s.vx = -s.vx * damping; }
         if (s.y + s.radius > h) { s.y = h - s.radius; if(s.vy > 0) s.vy = -s.vy * damping; }
-        if (s.y - s.radius < 0) { s.y = s.radius; if(s.vy < 0) s.vy = -s.vy * damping; }
       }
 
       // 상호 충돌
