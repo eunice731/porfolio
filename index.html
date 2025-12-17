@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Sticky & Heavy</title>
+  <title>Physics Wall - Stable & Stacked</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div><b>초밀착 모드</b><br>[Spacebar]를 눌러보세요. 빈틈없이 붙습니다.</div>
+    <div><b>안정화 모드</b><br>[Spacebar]를 눌러보세요. 떨림 없이 쌓입니다.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,12 +67,13 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 수정 (딱 붙게 만듦) ⭐
+    // ⭐ 떨림 방지 및 겹침 설정 ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (0.5 = 이미지의 절반 크기)
-    // 물리 박스가 작아지므로 이미지는 서로 푹 파묻히게 겹쳐 보입니다.
-    const HITBOX_SCALE = 0.5; 
+    // 1. 충돌 박스 크기 (0.75 추천)
+    // 너무 작으면(0.4) 물리 엔진이 불안정해서 떨립니다.
+    // 0.75 정도면 시각적으로는 겹쳐 보이면서 물리적으로는 안정적입니다.
+    const HITBOX_SCALE = 0.75; 
 
     // 2. 바닥 높이
     const FLOOR_OFFSET = 100; 
@@ -90,6 +91,7 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
+    // 모달 관련
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -118,7 +120,11 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    const engine = Engine.create();
+    // [핵심 1] enableSleeping: true
+    // 물체가 멈추면 물리 연산을 중단시킵니다. -> 떨림이 사라집니다.
+    const engine = Engine.create({
+      enableSleeping: true 
+    });
     const world = engine.world;
     engine.gravity.y = 1;
 
@@ -178,14 +184,18 @@
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          // ⚠️ 핵심 변경: chamfer(둥근 모서리)를 0으로 설정
-          // 둥근 부분이 없어져서 '보이지 않는 쿠션' 현상이 사라지고 칼같이 붙습니다.
-          chamfer: { radius: 0 }, 
           
-          restitution: 0.2, // 튕김 최소화
-          friction: 0.6,    // 마찰력 적당히
-          frictionAir: 0.005, // 공기 저항 (낮음)
-          density: 0.005,     // 밀도 높임 (무겁게 해서 꾹 눌리도록)
+          // [핵심 2] 아주 약간의 둥근 모서리 (Chamfer)
+          // 0으로 하면 모서리끼리 걸려서 떨립니다. 아주 살짝(10)만 줍니다.
+          chamfer: { radius: 10 }, 
+          
+          // [핵심 3] 높은 공기 저항 (frictionAir)
+          // 0.05 ~ 0.1 정도로 높이면 꿀 속에 있는 것처럼 묵직하게 움직이다 금방 멈춥니다.
+          frictionAir: 0.08, 
+          
+          restitution: 0.1, // 튀어오름 거의 없음
+          friction: 0.5,    
+          density: 0.002,
           
           render: { visible: false },
           customData: { 
@@ -196,7 +206,7 @@
           }
         });
 
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1); // 회전 속도도 줄임
         Composite.add(world, body);
       });
     }
@@ -224,6 +234,8 @@
           ctx.translate(x, y);
           ctx.rotate(angle);
           if (image.complete && image.naturalWidth !== 0) {
+             // 시각적 이미지는 물리 박스보다 크므로(HITBOX_SCALE < 1), 
+             // 자연스럽게 겹쳐 보입니다.
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
              ctx.fillStyle = '#ccc';
@@ -264,6 +276,8 @@
 
       if (clicked.length > 0) {
         dragBody = clicked[0];
+        // 드래그 시작 시 잠자기 모드 해제 (깨우기)
+        Matter.Sleeping.set(dragBody, false); 
         Body.setVelocity(dragBody, { x: 0, y: 0 });
         Body.setAngularVelocity(dragBody, 0);
       }
@@ -279,6 +293,7 @@
       moveDistance += Math.sqrt(dx*dx + dy*dy);
 
       if (dragBody) {
+        Matter.Sleeping.set(dragBody, false); // 계속 깨우기
         Body.setPosition(dragBody, { x: dragBody.position.x + dx, y: dragBody.position.y + dy });
         Body.setVelocity(dragBody, { x: 0, y: 0 });
       }
