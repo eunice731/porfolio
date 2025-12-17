@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>My Portfolio Wall</title>
+  <title>Physics Wall - Instant Smash</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -32,6 +32,7 @@
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
+    /* 모달 스타일 */
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
@@ -74,8 +75,9 @@
 
   <div id="intro">
     <div>
-      <b>Click to Start</b><br>
-      클릭하면 프로젝트가 쏟아집니다.
+      <b>[즉시 낙하 모드]</b><br>
+      속도 제한 무시 & 강제 투척<br>
+      클릭하여 확인하세요.
     </div>
   </div>
 
@@ -92,51 +94,9 @@
 
   <script>
     // =================================================================
-    // 👇👇👇 여기에 프로젝트 내용을 입력하세요 👇👇👇
-    // =================================================================
-    const works = [
-      {
-        id: 'p1',
-        title: '나의 첫번째 프로젝트',
-        tag: 'Brand Design',
-        description: '이 프로젝트는 브랜드의 아이덴티티를 구축하는 작업이었습니다. 로고부터 패키지까지 전체적인 톤앤매너를 잡았습니다.',
-        imageSrc: 'https://picsum.photos/200/300?random=1'
-      },
-      {
-        id: 'p2',
-        title: '웹사이트 리뉴얼',
-        tag: 'Web Dev',
-        description: '기존의 노후화된 웹사이트를 최신 트렌드에 맞춰 반응형으로 리뉴얼했습니다. 속도 최적화에 중점을 두었습니다.',
-        imageSrc: 'https://picsum.photos/250/200?random=2'
-      },
-      {
-        id: 'p3',
-        title: '모바일 앱 UX/UI',
-        tag: 'UI/UX',
-        description: '사용자 경험을 최우선으로 고려한 배달 앱 디자인입니다. 복잡한 동선을 최소화했습니다.',
-        imageSrc: 'https://picsum.photos/200/200?random=3'
-      },
-      {
-        id: 'p4',
-        title: '편집 디자인',
-        tag: 'Editorial',
-        description: '독립 출판물의 표지와 내지를 디자인했습니다. 종이의 질감과 타이포그래피의 조화에 집중했습니다.',
-        imageSrc: 'https://picsum.photos/220/280?random=4'
-      },
-      {
-        id: 'p5',
-        title: '3D 모션 그래픽',
-        tag: 'Motion',
-        description: 'Blender를 활용한 숏폼 모션 그래픽 영상입니다. 역동적인 움직임을 표현했습니다.',
-        imageSrc: 'https://picsum.photos/200/200?random=5'
-      },
-      // 필요하면 아래에 계속 추가하세요:
-      // { id: '...', title: '...', tag: '...', description: '...', imageSrc: '...' },
-    ];
-    // =================================================================
-
     const HITBOX_SCALE = 0.75; 
-    const FLOOR_OFFSET = 100;
+    const FLOOR_OFFSET = 100;   
+    // =================================================================
 
     const Engine = Matter.Engine,
           Bodies = Matter.Bodies,
@@ -154,6 +114,14 @@
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
     const detailClose = document.getElementById('detailClose');
+
+    const works = Array.from({ length: 15 }, (_, i) => ({
+      id: `work-${i+1}`,
+      title: `Project Title ${i+1}`,
+      tag: i % 2 === 0 ? 'Design' : 'Development',
+      description: `이것은 ${i+1}번째 프로젝트입니다.`,
+      imageSrc: `https://picsum.photos/200/200?random=${i}`
+    }));
 
     const loadedImages = {};
     let loadedCount = 0;
@@ -173,12 +141,13 @@
 
     const engine = Engine.create({ 
       enableSleeping: true,
+      // 속도가 너무 빨라 뚫리는 것 방지 (보정)
       positionIterations: 8,
       velocityIterations: 8
     });
     
     const world = engine.world;
-    engine.gravity.y = 5; 
+    engine.gravity.y = 5; // 기본 중력 5배
 
     const isMobile = () => window.innerWidth <= 900;
     let walls = [];
@@ -199,7 +168,7 @@
       Composite.remove(world, walls);
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const thick = 5000; 
+      const thick = 5000; // 바닥 절대 못 뚫게 두껍게
       
       walls = [
         Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
@@ -213,7 +182,7 @@
       const w = window.innerWidth;
       const baseSize = isMobile() ? 150 : 200;
 
-      works.forEach((work) => {
+      works.forEach((work, i) => {
         const img = loadedImages[work.id];
         let visualWidth = baseSize;
         let visualHeight = baseSize;
@@ -227,23 +196,28 @@
         const physWidth = visualWidth * HITBOX_SCALE;
         const physHeight = visualHeight * HITBOX_SCALE;
         
+        // ⭐ 위치 압축: 화면 바로 위에서 생성 (-200 ~ -600)
+        // 더 이상 하늘 끝에서 떨어지길 기다리지 않습니다.
         const x = Math.random() * (w - 100) + 50;
         const y = -Math.random() * 400 - 200; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
           chamfer: { radius: 10 },
-          frictionAir: 0, 
-          restitution: 0.4, 
+          
+          frictionAir: 0,   // 진공 (공기저항 0)
+          restitution: 0.4, // 적당한 튕김
           friction: 0.5,
           density: 0.005,
           render: { visible: false },
           customData: { work, image: img, width: visualWidth, height: visualHeight }
         });
 
+        // ⭐ 강제 슈팅 (Velocity Override) ⭐
+        // 중력이 아니라, 시작하자마자 아래로 '발사'합니다.
         Body.setVelocity(body, { 
             x: (Math.random() - 0.5) * 5, 
-            y: Math.random() * 30 + 50 
+            y: Math.random() * 30 + 50 // 엄청난 하강 속도 부여
         });
         
         Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.5);
@@ -275,18 +249,15 @@
         if (image && image.complete && image.naturalWidth !== 0) {
             ctx.drawImage(image, -width/2, -height/2, width, height);
         } else {
-            ctx.fillStyle = '#333';
+            ctx.fillStyle = '#999';
             ctx.fillRect(-width/2, -height/2, width, height);
-            ctx.fillStyle = '#fff';
-            ctx.textAlign = 'center';
-            ctx.fillText(work.title, 0, 0);
         }
         ctx.restore();
       }
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 클릭 로직 =====
+    // ===== 클릭 및 상호작용 =====
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
