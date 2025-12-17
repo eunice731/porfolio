@@ -2,112 +2,213 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Debug Mode</title>
+  <title>Simple Drop</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  
   <style>
-    body { margin: 0; overflow: hidden; background: #fff; }
-    canvas { display: block; width: 100%; height: 100%; }
-    #msg {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      font-size: 24px; font-weight: bold; color: red; pointer-events: none;
-      text-align: center;
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+      background: #ffffff;
+      touch-action: none; 
     }
+    canvas {
+      position: fixed; inset: 0; display: block;
+      width: 100%; height: 100%; cursor: grab;
+    }
+    canvas:active { cursor: grabbing; }
+    
+    #intro {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      pointer-events: none;
+      font-size: 1.2rem; color: #555; 
+      transition: opacity 0.3s ease; z-index: 5;
+      background: rgba(255,255,255,0.8);
+    }
+    #intro.hidden { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
-  <div id="msg">화면을 클릭하면<br>이미지 로딩을 시도합니다</div>
+
   <canvas id="canvas"></canvas>
 
+  <div id="intro">
+    <div><b>화면을 클릭하면 시작합니다</b></div>
+  </div>
+
   <script>
-    // ========================================================
-    // [진단용 설정]
-    // 여기서 확장자가 .jpg인지 .png인지 .PNG인지 꼭 확인하세요.
-    // ========================================================
-    const FOLDER_NAME = 'icon'; // 폴더 이름
-    const EXTENSION = '.png';   // 파일 확장자 (점 포함)
-    const TOTAL_NUM = 15;       // 이미지 개수
-    // ========================================================
+    // =================================================================
+    // 🔥 깔끔하게 초기화: icon 폴더의 1.png ~ 15.png 만 가져옵니다 🔥
+    // 상세설명/팝업 기능 다 뺐습니다.
+    // =================================================================
+    const works = [];
+    for (let i = 1; i <= 15; i++) {
+      works.push({
+        id: i,
+        // icon 폴더 안의 이미지
+        imageSrc: './icon/' + i + '.png' 
+      });
+    }
 
     const Engine = Matter.Engine,
-          Render = Matter.Render,
-          Runner = Matter.Runner,
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
+          Body = Matter.Body,
           Mouse = Matter.Mouse,
           MouseConstraint = Matter.MouseConstraint;
 
-    const engine = Engine.create();
-    const world = engine.world;
-
     const canvas = document.getElementById('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    const intro = document.getElementById('intro');
 
-    const render = Render.create({
-      canvas: canvas,
-      engine: engine,
-      options: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        wireframes: false, // 이미지를 보려면 false여야 함
-        background: '#ffffff'
-      }
-    });
+    // 이미지 미리 불러오기
+    const loadedImages = {};
+    let loadedCount = 0;
 
-    // 벽 생성
-    const wallOptions = { isStatic: true, render: { fillStyle: '#333' } };
-    const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight + 50, window.innerWidth, 100, wallOptions);
-    const leftWall = Bodies.rectangle(-50, window.innerHeight/2, 100, window.innerHeight, wallOptions);
-    const rightWall = Bodies.rectangle(window.innerWidth+50, window.innerHeight/2, 100, window.innerHeight, wallOptions);
-    Composite.add(world, [ground, leftWall, rightWall]);
+    function preloadImages(callback) {
+      if (works.length === 0) { callback(); return; }
+      
+      works.forEach(work => {
+        const img = new Image();
+        // 로컬/깃허브용이라 crossOrigin 삭제함
+        
+        img.onerror = () => {
+          // 이미지가 없어도 멈추지 않고 빨간 박스로라도 보여주기 위해 카운트 올림
+          console.warn("이미지 로드 실패: " + work.imageSrc);
+          loadedCount++; 
+          if(loadedCount === works.length) callback();
+        };
+        
+        img.onload = () => {
+          loadedCount++;
+          if(loadedCount === works.length) callback();
+        };
+        
+        img.src = work.imageSrc;
+        loadedImages[work.id] = img;
+      });
+    }
 
-    // 마우스 컨트롤
-    const mouse = Mouse.create(render.canvas);
+    // 물리 엔진 설정
+    const engine = Engine.create({ enableSleeping: false });
+    const world = engine.world;
+    engine.gravity.y = 2; // 적당한 중력
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      createWalls();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    let walls = [];
+    function createWalls() {
+      Composite.remove(world, walls);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const thick = 200; 
+      
+      walls = [
+        Bodies.rectangle(w/2, h + thick/2 - 50, w * 2, thick, { isStatic: true }), // 바닥
+        Bodies.rectangle(-thick/2, h/2, thick, h * 2, { isStatic: true }), // 왼쪽 벽
+        Bodies.rectangle(w + thick/2, h/2, thick, h * 2, { isStatic: true }) // 오른쪽 벽
+      ];
+      Composite.add(world, walls);
+    }
+
+    function spawnBoxes() {
+      const w = window.innerWidth;
+      const baseSize = w < 600 ? 100 : 150; 
+
+      works.forEach((work) => {
+        const img = loadedImages[work.id];
+        let width = baseSize;
+        let height = baseSize;
+
+        // 이미지 비율대로 크기 조절
+        if (img && img.complete && img.naturalWidth !== 0) {
+           const aspect = img.naturalHeight / img.naturalWidth;
+           width = baseSize;
+           height = width * aspect;
+        }
+
+        const x = Math.random() * (w - 200) + 100;
+        const y = -Math.random() * 1000 - 100;
+
+        const body = Bodies.rectangle(x, y, width, height, {
+          restitution: 0.5,
+          friction: 0.1,
+          angle: Math.random() * Math.PI,
+          customData: { img: img, w: width, h: height, src: work.imageSrc } // 데이터 저장
+        });
+        
+        Composite.add(world, body);
+      });
+    }
+
+    // 마우스 드래그 기능 추가
+    const mouse = Mouse.create(canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
       constraint: { stiffness: 0.2, render: { visible: false } }
     });
     Composite.add(world, mouseConstraint);
-    render.mouse = mouse;
+    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
+    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
 
-    function start() {
-      document.getElementById('msg').style.display = 'none';
-
-      for (let i = 1; i <= TOTAL_NUM; i++) {
-        const fileName = `./${FOLDER_NAME}/${i}${EXTENSION}`;
-        
-        // 박스 생성
-        const size = 150;
-        const body = Bodies.rectangle(
-          Math.random() * (window.innerWidth - 200) + 100, 
-          -Math.random() * 1000 - 100, 
-          size, size, 
-          {
-            render: {
-              sprite: {
-                texture: fileName, // 이미지 경로 연결
-                xScale: 0.5, // 이미지 크기 조절 (필요시 수정)
-                yScale: 0.5
-              }
-            }
-          }
-        );
-        Composite.add(world, body);
-      }
+    // 렌더링 루프
+    function render() {
+      Engine.update(engine, 1000 / 60);
       
-      Render.run(render);
-      const runner = Runner.create();
-      Runner.run(runner, engine);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const bodies = Composite.allBodies(world);
+      
+      for (let i = 0; i < bodies.length; i++) {
+        const body = bodies[i];
+        if (body.isStatic) continue; // 벽은 그리지 않음
+
+        const { x, y } = body.position;
+        const angle = body.angle;
+        const { img, w, h, src } = body.customData || {};
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        if (img && img.complete && img.naturalWidth !== 0) {
+          ctx.drawImage(img, -w/2, -h/2, w, h);
+        } else {
+          // 이미지가 깨지거나 경로가 틀렸으면 빨간 박스 표시 (디버깅용)
+          ctx.fillStyle = 'red';
+          ctx.fillRect(-w/2, -h/2, w, h);
+          ctx.fillStyle = 'white';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText("X", 0, 5);
+        }
+        
+        ctx.restore();
+      }
+      requestAnimationFrame(render);
     }
 
-    // Matter.js 자체 렌더러가 이미지를 못 찾으면 그냥 빈 공간으로 둡니다.
-    // 그래서 이미지가 안 뜨면 "경로가 틀림"을 알 수 있게 배경색을 칠하는 기능은
-    // Matter.js 기본 렌더러에는 없습니다. 
-    // 하지만 "분홍색/검은색 박스"라도 나오면 코드는 정상이고 이미지 경로만 틀린 겁니다.
-    // 아무것도 안 나오면 -> 캔버스 오류입니다.
+    // 시작
+    function start() {
+      intro.classList.add('hidden');
+      resizeCanvas();
+      spawnBoxes();
+      render();
+    }
 
-    document.addEventListener('click', start, { once: true });
-    document.addEventListener('touchstart', start, { once: true });
+    preloadImages(() => {
+      document.body.addEventListener('click', start, { once: true });
+      document.body.addEventListener('touchstart', start, { once: true });
+    });
 
   </script>
 </body>
