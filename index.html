@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall</title>
+  <title>Portfolio Physics Wall - Tight Box Stacking</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -90,7 +90,6 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -98,7 +97,6 @@
     const detailMeta = document.getElementById('detailMeta');
     const detailClose = document.getElementById('detailClose');
 
-    // 리사이징 (고해상도 대응)
     function resize() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
@@ -112,9 +110,6 @@
 
     const isMobile = () => window.innerWidth <= 900;
 
-    // ==========================================
-    // ===== 작업 데이터 (1.png ~ 15.png) =====
-    // ==========================================
     const works = [
       { id: 'work-1', title: '작업물 1', tag: 'Graphic', description: '설명', meta: 'Tool', imageSrc: './icon/1.png' },
       { id: 'work-2', title: '작업물 2', tag: 'Web', description: '설명', meta: 'Tool', imageSrc: './icon/2.png' },
@@ -133,7 +128,6 @@
       { id: 'work-15', title: '작업물 15', tag: 'Logo', description: '설명', meta: 'Tool', imageSrc: './icon/15.png' }
     ];
 
-    // ===== 이미지 프리로드 =====
     const loadedImages = {};
     let imagesLoadedCount = 0;
     let allImagesLoaded = false;
@@ -162,38 +156,49 @@
       });
     }
 
-    // ===== 물리 엔진 =====
+    // ===== 물리 엔진 (타이트한 박스 모델) =====
     const shapes = [];
     let hasSpawned = false;
     const gravity = 800;
-    const damping = 0.8;
-    const restitution = 0.5;
-    let lastTime = null;
+    const damping = 0.6; 
+    const friction = 0.96; 
+    // [핵심] 충돌 박스 크기 비율 (0.85 = 실제 이미지의 85% 크기만 충돌 판정)
+    const HITBOX_RATIO = 0.85; 
 
     function spawnShapes() {
       if (!allImagesLoaded) return;
       const w = window.innerWidth;
-      const h = window.innerHeight;
       shapes.length = 0;
 
       const mobile = isMobile();
       const count = works.length; 
-      
-      const baseRadius = mobile ? 60 : 60; 
-      const radiusRange = mobile ? 40 : 40; 
+      const baseSize = mobile ? 100 : 120; 
 
       for (let i = 0; i < count; i++) {
         const work = works[i % works.length];
-        const r = baseRadius + Math.random() * radiusRange;
-        const x = r + Math.random() * (w - 2 * r);
-        const y = -200 - Math.random() * 300; 
-        const vx = (Math.random() - 0.5) * (mobile ? 40 : 60);
+        const img = loadedImages[work.id];
+        
+        let width, height;
+        if (img && img.naturalWidth) {
+            const aspect = img.naturalHeight / img.naturalWidth;
+            width = baseSize + (Math.random() - 0.5) * 40;
+            height = width * aspect;
+        } else {
+            width = baseSize;
+            height = baseSize;
+        }
+
+        const x = width + Math.random() * (w - 2 * width);
+        const y = -200 - Math.random() * 500;
         
         shapes.push({
           id: work.id,
-          x, y, vx, vy: 0,
-          radius: r,
-          image: loadedImages[work.id],
+          x, y, vx: (Math.random() - 0.5) * 100, vy: 0,
+          width, height, // 실제 그리는 크기
+          // [핵심] 실제 충돌 계산에 쓰일 조금 더 작은 크기
+          hitWidth: width * HITBOX_RATIO,
+          hitHeight: height * HITBOX_RATIO,
+          image: img,
           work,
           isDragging: false
         });
@@ -209,121 +214,107 @@
           s.vy += gravity * dt;
           s.x += s.vx * dt;
           s.y += s.vy * dt;
+          s.vx *= friction;
         }
-
-        if (s.x - s.radius < 0) { s.x = s.radius; if(s.vx < 0) s.vx = -s.vx * damping; }
-        if (s.x + s.radius > w) { s.x = w - s.radius; if(s.vx > 0) s.vx = -s.vx * damping; }
-        if (s.y + s.radius > h) { s.y = h - s.radius; if(s.vy > 0) s.vy = -s.vy * damping; }
       }
 
+      // 벽 충돌 (힛박스 기준)
+      for (const s of shapes) {
+        const halfW = s.hitWidth / 2;
+        const halfH = s.hitHeight / 2;
+
+        if (s.y + halfH > h) { s.y = h - halfH; if(s.vy > 0) s.vy = -s.vy * damping; }
+        if (s.x - halfW < 0) { s.x = halfW; if(s.vx < 0) s.vx = -s.vx * damping; }
+        if (s.x + halfW > w) { s.x = w - halfW; if(s.vx > 0) s.vx = -s.vx * damping; }
+      }
+
+      // 물체 간 충돌 (AABB - 타이트한 힛박스 기준)
       for (let i = 0; i < shapes.length; i++) {
         for (let j = i + 1; j < shapes.length; j++) {
           const a = shapes[i];
           const b = shapes[j];
+          if (a.isDragging || b.isDragging) continue;
+
           const dx = b.x - a.x;
           const dy = b.y - a.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          const minDist = a.radius + b.radius;
+          
+          // [핵심] 충돌 계산에는 줄어든 hitWidth/hitHeight 사용
+          const combinedHalfW = (a.hitWidth / 2) + (b.hitWidth / 2);
+          const combinedHalfH = (a.hitHeight / 2) + (b.hitHeight / 2);
 
-          if (dist > 0 && dist < minDist) {
-            const overlap = minDist - dist;
-            const nx = dx / dist;
-            const ny = dy / dist;
+          const overlapX = combinedHalfW - Math.abs(dx);
+          const overlapY = combinedHalfH - Math.abs(dy);
 
-            if (a.isDragging && !b.isDragging) {
-              b.x += nx * overlap; b.y += ny * overlap;
-              b.vx += nx * overlap*5; b.vy += ny * overlap*5;
-              continue;
-            }
-            if (b.isDragging && !a.isDragging) {
-              a.x -= nx * overlap; a.y -= ny * overlap;
-              a.vx -= nx * overlap*5; a.vy -= ny * overlap*5;
-              continue;
-            }
+          if (overlapX > 0 && overlapY > 0) {
+            if (overlapX < overlapY) {
+                const normalX = dx > 0 ? 1 : -1;
+                a.x -= normalX * overlapX * 0.5;
+                b.x += normalX * overlapX * 0.5;
+                
+                const relVx = b.vx - a.vx;
+                if (relVx * normalX < 0) {
+                    const impulse = relVx * (1 + damping) * 0.5;
+                    a.vx += impulse; b.vx -= impulse;
+                }
+            } else {
+                const normalY = dy > 0 ? 1 : -1;
+                a.y -= normalY * overlapY * 0.5;
+                b.y += normalY * overlapY * 0.5;
 
-            a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
-            b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
-
-            const relVx = b.vx - a.vx;
-            const relVy = b.vy - a.vy;
-            const relAlongNormal = relVx * nx + relVy * ny;
-
-            if (relAlongNormal < 0) {
-              const j = -(1 + restitution) * relAlongNormal / 2;
-              const ix = j * nx; const iy = j * ny;
-              a.vx -= ix; a.vy -= iy;
-              b.vx += ix; b.vy += iy;
-              a.vx *= damping; a.vy *= damping;
-              b.vx *= damping; b.vy *= damping;
+                const relVy = b.vy - a.vy;
+                if (relVy * normalY < 0) {
+                    const impulse = relVy * (1 + damping) * 0.5;
+                    a.vy += impulse; b.vy -= impulse;
+                    if (Math.abs(a.vx) < 50 && Math.abs(b.vx) < 50) {
+                        a.vx *= 0.9; b.vx *= 0.9;
+                    }
+                }
             }
           }
         }
       }
     }
 
-    // ===== 그리기 함수 (글씨 그리는 코드 100% 제거됨) =====
     function draw() {
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
       for (const s of shapes) {
+        // 그림은 원래 크기(width, height)대로 그림
         if (s.image && s.image.complete && s.image.naturalWidth !== 0) {
-          ctx.save();
+          ctx.drawImage(
+            s.image,
+            s.x - s.width / 2,
+            s.y - s.height / 2,
+            s.width,
+            s.height
+          );
           
-          // 1. 원형 클리핑
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-          ctx.clip();
+          // [디버깅용] 실제 충돌 박스 확인하고 싶으면 아래 주석 해제
+          // ctx.strokeStyle = 'red'; ctx.lineWidth = 2;
+          // ctx.strokeRect(s.x - s.hitWidth/2, s.y - s.hitHeight/2, s.hitWidth, s.hitHeight);
 
-          // 2. 이미지 그리기 (비율 유지 - Fit)
-          const img = s.image;
-          const imgW = img.naturalWidth;
-          const imgH = img.naturalHeight;
-          const aspect = imgW / imgH;
-          const diameter = s.radius * 2;
-          
-          let drawW, drawH;
-          if (aspect > 1) { // 가로가 긴 이미지
-            drawW = diameter;
-            drawH = diameter / aspect;
-          } else { // 세로가 긴 이미지
-            drawH = diameter;
-            drawW = diameter * aspect;
-          }
-          
-          // 중앙 정렬
-          const drawX = s.x - drawW / 2;
-          const drawY = s.y - drawH / 2;
-
-          ctx.drawImage(img, drawX, drawY, drawW, drawH);
-          ctx.restore();
         } else {
-          // 이미지 로딩 전 회색 원
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
-          ctx.fillStyle = '#eee';
-          ctx.fill();
+          ctx.fillStyle = '#ccc';
+          ctx.fillRect(s.x - s.width / 2, s.y - s.height / 2, s.width, s.height);
         }
-        
-        // 여기에 원래 있던 ctx.fillText (글씨 그리기) 코드는 완전히 삭제되었습니다.
       }
     }
 
     function loop(timestamp) {
       if (!lastTime) lastTime = timestamp;
-      const dt = Math.min((timestamp - lastTime) / 1000, 0.03);
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.02); 
       lastTime = timestamp;
 
       if (shapes.length > 0) {
-        update(dt);
+        update(dt * 0.5);
+        update(dt * 0.5);
         draw();
       }
       requestAnimationFrame(loop);
     }
 
-    // ===== 초기화 =====
     function onImagesReady() {
       intro.innerHTML = '화면을 탭하면 아이콘들이 떨어집니다.';
-      
       const start = () => {
         if (!hasSpawned) {
           hasSpawned = true;
@@ -333,13 +324,11 @@
       };
       document.body.addEventListener('click', start, { once: true });
       document.body.addEventListener('touchstart', start, { once: true, passive: true });
-      
       requestAnimationFrame(loop);
     }
-
     preloadImages(onImagesReady);
 
-    // ===== 모달 제어 =====
+    // 모달 및 포인터 이벤트 (이전과 동일하여 생략하지 않고 전체 포함)
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
@@ -351,21 +340,21 @@
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
 
-    // ===== 포인터 (드래그/클릭) =====
     let isPointerDown = false;
     let dragTarget = null;
     let dragOffsetX=0, dragOffsetY=0;
     let lastPointerX=0, lastPointerY=0;
     let pointerDownTime=0;
     let pointerMovedDistSq=0;
-    let dragHistory = [];
 
     function getShapeAt(x, y) {
       for (let i = shapes.length - 1; i >= 0; i--) {
         const s = shapes[i];
-        const dx = x - s.x;
-        const dy = y - s.y;
-        if (dx*dx + dy*dy <= s.radius * s.radius) return s;
+        // 클릭 판정은 실제 보이는 크기 기준
+        if (x >= s.x - s.width/2 && x <= s.x + s.width/2 &&
+            y >= s.y - s.height/2 && y <= s.y + s.height/2) {
+          return s;
+        }
       }
       return null;
     }
@@ -375,53 +364,39 @@
       lastPointerX = x; lastPointerY = y;
       pointerDownTime = performance.now();
       pointerMovedDistSq = 0;
-      dragHistory = [];
-
       const s = getShapeAt(x, y);
       if (s) {
         dragTarget = s;
         dragOffsetX = x - s.x;
         dragOffsetY = y - s.y;
         s.isDragging = true;
+        s.vx = 0; s.vy = 0;
       }
     }
 
     function pointerMove(x, y) {
-      if (!isPointerDown || !dragTarget) return;
+      if (!isPointerDown) return;
       const dx = x - lastPointerX; const dy = y - lastPointerY;
       pointerMovedDistSq += dx*dx + dy*dy;
-      dragTarget.x = x - dragOffsetX;
-      dragTarget.y = y - dragOffsetY;
       lastPointerX = x; lastPointerY = y;
-      
-      dragHistory.push({ x: dragTarget.x, y: dragTarget.y, t: performance.now() });
-      if (dragHistory.length > 5) dragHistory.shift();
+      if (dragTarget) {
+        dragTarget.x = x - dragOffsetX;
+        dragTarget.y = y - dragOffsetY;
+        dragTarget.vx = dx * 20; dragTarget.vy = dy * 20;
+      }
     }
 
     function pointerUp(x, y) {
       if (!isPointerDown) return;
       isPointerDown = false;
       const elapsed = performance.now() - pointerDownTime;
-
-      if (dragTarget && dragHistory.length >= 2) {
-        dragTarget.isDragging = false;
-        const a = dragHistory[dragHistory.length - 2];
-        const b = dragHistory[dragHistory.length - 1];
-        const dt = (b.t - a.t) / 1000;
-        if (dt > 0) {
-          dragTarget.vx = (b.x - a.x) / dt * 0.9;
-          dragTarget.vy = (b.y - a.y) / dt * 0.9;
-        }
-      }
-
+      if (dragTarget) dragTarget.isDragging = false;
       let clicked = dragTarget || getShapeAt(x, y);
-      if (!dragTarget) clicked = getShapeAt(x, y); 
-      
-      if (clicked && pointerMovedDistSq < 100 && elapsed < 300) {
+      if (!dragTarget) clicked = getShapeAt(x, y);
+      if (clicked && pointerMovedDistSq < 50 && elapsed < 300) {
         showDetail(clicked.work);
       }
       dragTarget = null;
-      dragHistory = [];
     }
 
     ['mousedown','touchstart'].forEach(evt => 
@@ -435,7 +410,6 @@
     ['mousemove','touchmove'].forEach(evt => 
       canvas.addEventListener(evt, e => {
         e.preventDefault();
-        if(!isPointerDown) return;
         const r = canvas.getBoundingClientRect();
         const p = e.touches ? e.touches[0] : e;
         pointerMove(p.clientX - r.left, p.clientY - r.top);
