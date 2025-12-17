@@ -79,7 +79,6 @@
       flex: 1.2; 
       background: #f0f0f0; 
       border-radius: 8px;
-      /* overflow-y: auto;  <- 스크롤 제거 */
       overflow: hidden; /* 넘치는 부분 숨김 */
       display: flex; 
       align-items: center; /* 세로 중앙 정렬 */
@@ -87,12 +86,8 @@
       position: relative;
     }
     
-    /* 🔥 [삭제] "NO IMAGE" 텍스트 제거됨 */
-    /* .detail-left::after { ... } 부분이 삭제되었습니다. */
-
     /* 🔥 [수정] 상세 이미지 스타일 (비율 유지 및 꽉 채우기) */
     .detail-img {
-      /* width: 100%; height: auto; <- 기존 방식 삭제 */
       max-width: 100%;  /* 부모 너비를 넘지 않음 */
       max-height: 100%; /* 부모 높이를 넘지 않음 */
       object-fit: contain; /* 비율 유지하며 박스 안에 맞춤 (잘림 없음) */
@@ -133,7 +128,7 @@
 
   <div id="intro">
     <div>
-      <b>[이미지 비율/정렬 수정 완료]</b><br>
+      <b>[수정 완료]</b><br>
       아이콘을 클릭하면<br>
       사진이 잘리지 않고 중앙에 표시됩니다.
     </div>
@@ -160,8 +155,8 @@
 
   <script>
     // =================================================================
-    // 🔥 데이터 설정 (1번 ~ 15번 전체)
-    // detailImage 경로는 'detail' 폴더 안의 파일명(확장자 포함)과 정확히 일치해야 합니다.
+    // 🔥 데이터 설정
+    // ⚠️ 주의: 파일 경로(./detail/detail1.jpg 등)가 실제 파일명과 일치하는지 꼭 확인하세요!
     // =================================================================
     const works = [
       {
@@ -170,7 +165,8 @@
         detailImage: './detail/detail1.jpg',
         title: 'Crawling',
         tag: 'logo',
-        desc: 'Type design for crawl in Korean.\n긴 사진도 잘리지 않고 박스 안에 비율을 유지하며 들어갑니다.'
+        // 🔴 수정됨: 내부에 'crawl' 따옴표 충돌 방지를 위해 큰따옴표(") 사용
+        desc: "Type design for 'crawl' in Korean.\n긴 사진도 잘리지 않고 박스 안에 비율을 유지하며 들어갑니다."
       },
       {
         id: 'work-2',
@@ -183,7 +179,7 @@
       {
         id: 'work-3',
         imageSrc: './icon/3.png',
-        detailImage: '', // 이미지가 없는 경우 -> 회색 빈 박스만 중앙에 뜸
+        detailImage: '', 
         title: 'Moaning Sound',
         tag: 'editorial',
         desc: 'Book based on moaning sound. Korean alphabet has its own unique pattern used in moaning sound. This book is used to put them altogether in one'
@@ -242,7 +238,8 @@
         detailImage: './detail/detail10.png',
         title: 'Lovecall',
         tag: 'logo',
-        desc: 'Korean type design for 'Love Call'.'
+        // 🔴 수정됨: 'Love Call' 따옴표 충돌 방지를 위해 큰따옴표(") 사용
+        desc: "Korean type design for 'Love Call'."
       },
       {
         id: 'work-11',
@@ -480,26 +477,22 @@
     }
 
     // =================================================================
-    // 🔥 [업데이트] 이미지 표시 로직
+    // 🔥 [이미지 표시 로직]
     // =================================================================
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.desc;
       
-      // 기본적으로 이미지 박스와 이미지 태그를 보여줌
       detailImgCol.style.display = 'flex';
       detailMainImg.style.display = 'block';
 
-      // 이미지 경로 설정
       if (!work.detailImage || work.detailImage.trim() === "") {
-         // 경로가 비어있으면 -> 이미지만 숨김 (회색 박스만 보임, 글씨 없음)
          detailMainImg.style.display = 'none';
       } else {
          detailMainImg.src = work.detailImage;
       }
 
-      // 로딩 실패(파일 없음) 시 -> 이미지만 숨김 (회색 박스만 보임)
       detailMainImg.onerror = function() {
         this.style.display = 'none'; 
       };
