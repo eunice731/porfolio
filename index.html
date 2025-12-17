@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>My Portfolio Wall</title>
+  <title>Portfolio Wall - With Detail Images</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -10,7 +10,7 @@
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
       overflow: hidden;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Pretendard', system-ui, -apple-system, sans-serif; /* 폰트 살짝 변경 */
       background: #ffffff;
       touch-action: none; 
     }
@@ -35,37 +35,60 @@
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0,0,0,0.5); /* 배경 조금 더 어둡게 */
       opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
       z-index: 100;
+      backdrop-filter: blur(2px); /* 배경 블러 효과 */
     }
     .detail-overlay.open { opacity: 1; pointer-events: auto; }
     
     .detail-modal {
-      width: min(480px, 80vw); 
-      max-height: 80vh;
+      width: min(500px, 85vw); 
+      max-height: 85vh;
+      overflow-y: auto; /* 내용 길면 스크롤 */
       background: #fff; 
       border-radius: 16px;
-      box-shadow: 0 18px 45px rgba(0,0,0,0.25);
-      padding: 25px; 
-      display: flex; flex-direction: column; gap: 12px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.3);
+      padding: 30px; 
+      display: flex; flex-direction: column; gap: 16px;
       transform: translateY(20px); transition: transform 0.25s ease;
     }
+    /* 스크롤바 숨기기 (선택사항) */
+    .detail-modal::-webkit-scrollbar { width: 6px; }
+    .detail-modal::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
     .detail-overlay.open .detail-modal { transform: translateY(0); }
     
     .detail-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .detail-title { font-weight: 800; font-size: 1.5rem; color: #111; }
+    .detail-title { font-weight: 800; font-size: 1.6rem; color: #111; line-height: 1.2; }
     .detail-close { 
       cursor: pointer; border: none; background: transparent; 
-      font-size: 1.8rem; line-height: 1; color: #999; padding: 0;
+      font-size: 2rem; line-height: 0.8; color: #999; padding: 0; margin-left: 10px;
     }
     .detail-close:hover { color: #000; }
+    
     .detail-tag { 
       display: inline-block; background: #f0f0f0; color: #555; 
-      padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+      padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600;
       align-self: flex-start;
     }
-    .detail-body { font-size: 1rem; line-height: 1.6; color: #333; margin-top: 10px; }
+    
+    /* ⭐ 새로 추가된 이미지 스타일 ⭐ */
+    .detail-image {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      object-fit: cover;
+      display: none; /* 이미지가 없으면 숨김 */
+      margin-top: 5px;
+      border: 1px solid #eee;
+    }
+    .detail-image.active { display: block; }
+
+    .detail-body { 
+      font-size: 1rem; line-height: 1.7; color: #333; 
+      white-space: pre-line; /* 줄바꿈 적용 */
+    }
   </style>
 </head>
 <body>
@@ -75,7 +98,7 @@
   <div id="intro">
     <div>
       <b>Click to Start</b><br>
-      클릭하면 프로젝트가 쏟아집니다.
+      클릭하여 확인하세요.
     </div>
   </div>
 
@@ -85,53 +108,60 @@
         <div class="detail-title" id="detailTitle">제목</div>
         <button class="detail-close" id="detailClose">×</button>
       </div>
+      
       <div class="detail-tag" id="detailTag">Tag</div>
+      
+      <img id="detailImg" class="detail-image" src="" alt="Detail View">
+      
       <div class="detail-body" id="detailBody">내용</div>
     </div>
   </div>
 
   <script>
     // =================================================================
-    // 👇👇👇 여기에 프로젝트 내용을 입력하세요 👇👇👇
+    // 👇👇👇 detailImage 항목에 상세 이미지 주소를 넣으세요 👇👇👇
     // =================================================================
     const works = [
       {
         id: 'p1',
-        title: '나의 첫번째 프로젝트',
+        title: '브랜드 아이덴티티 디자인',
         tag: 'Brand Design',
-        description: '이 프로젝트는 브랜드의 아이덴티티를 구축하는 작업이었습니다. 로고부터 패키지까지 전체적인 톤앤매너를 잡았습니다.',
-        imageSrc: 'https://picsum.photos/200/300?random=1'
+        description: '브랜드의 핵심 가치를 시각화하여 로고와 어플리케이션을 제작했습니다.\n전체적인 톤앤매너는 모던함을 유지했습니다.',
+        imageSrc: 'https://picsum.photos/200/300?random=1', // 박스에 붙을 이미지
+        detailImage: 'https://picsum.photos/600/400?random=10' // ⭐ 모달 안에 뜰 큰 이미지
       },
       {
         id: 'p2',
-        title: '웹사이트 리뉴얼',
+        title: '웹사이트 리뉴얼 프로젝트',
         tag: 'Web Dev',
-        description: '기존의 노후화된 웹사이트를 최신 트렌드에 맞춰 반응형으로 리뉴얼했습니다. 속도 최적화에 중점을 두었습니다.',
-        imageSrc: 'https://picsum.photos/250/200?random=2'
+        description: '사용자 경험을 개선하기 위해 UX를 개편하고 반응형 웹을 구현했습니다.',
+        imageSrc: 'https://picsum.photos/250/200?random=2',
+        detailImage: 'https://picsum.photos/600/400?random=20' 
       },
       {
         id: 'p3',
-        title: '모바일 앱 UX/UI',
+        title: '모바일 어플리케이션',
         tag: 'UI/UX',
-        description: '사용자 경험을 최우선으로 고려한 배달 앱 디자인입니다. 복잡한 동선을 최소화했습니다.',
-        imageSrc: 'https://picsum.photos/200/200?random=3'
+        description: '직관적인 인터페이스를 위해 불필요한 요소를 제거했습니다.',
+        imageSrc: 'https://picsum.photos/200/200?random=3',
+        detailImage: '' // 이미지가 없으면 비워두면 됩니다 (글자만 나옴)
       },
       {
         id: 'p4',
-        title: '편집 디자인',
+        title: '편집 디자인 포트폴리오',
         tag: 'Editorial',
-        description: '독립 출판물의 표지와 내지를 디자인했습니다. 종이의 질감과 타이포그래피의 조화에 집중했습니다.',
-        imageSrc: 'https://picsum.photos/220/280?random=4'
+        description: '타이포그래피를 중심으로 한 레이아웃 실험작입니다.',
+        imageSrc: 'https://picsum.photos/220/280?random=4',
+        detailImage: 'https://picsum.photos/600/800?random=40' // 세로 이미지도 OK
       },
       {
         id: 'p5',
         title: '3D 모션 그래픽',
         tag: 'Motion',
-        description: 'Blender를 활용한 숏폼 모션 그래픽 영상입니다. 역동적인 움직임을 표현했습니다.',
-        imageSrc: 'https://picsum.photos/200/200?random=5'
+        description: 'Cinema 4D를 활용한 15초 숏폼 영상 작업물입니다.',
+        imageSrc: 'https://picsum.photos/200/200?random=5',
+        detailImage: 'https://picsum.photos/600/350?random=50'
       },
-      // 필요하면 아래에 계속 추가하세요:
-      // { id: '...', title: '...', tag: '...', description: '...', imageSrc: '...' },
     ];
     // =================================================================
 
@@ -149,11 +179,13 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
+    // 모달 요소들
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
     const detailClose = document.getElementById('detailClose');
+    const detailImg = document.getElementById('detailImg'); // ⭐ 이미지 태그 가져오기
 
     const loadedImages = {};
     let loadedCount = 0;
@@ -392,12 +424,24 @@
       document.body.addEventListener('touchstart', start, { once: true });
     });
 
+    // ⭐ 상세 정보 표시 (이미지 처리 추가) ⭐
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
-      detailBody.textContent = work.description;
+      detailBody.innerText = work.description; // 텍스트 줄바꿈 허용 (innerText 사용)
+      
+      // 이미지가 있으면 보여주고, 없으면 숨김
+      if (work.detailImage) {
+        detailImg.src = work.detailImage;
+        detailImg.classList.add('active');
+      } else {
+        detailImg.src = "";
+        detailImg.classList.remove('active');
+      }
+      
       detailOverlay.classList.add('open');
     }
+
     function hideDetail() { detailOverlay.classList.remove('open'); }
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) hideDetail(); });
