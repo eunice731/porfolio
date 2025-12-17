@@ -74,28 +74,23 @@
       display: flex; gap: 30px; flex: 1; overflow: hidden;
     }
 
-    /* 🔥 [수정] 왼쪽: 이미지 영역 (중앙 정렬 및 스크롤 제거) */
+    /* 왼쪽: 이미지 영역 */
     .detail-left {
       flex: 1.2; 
       background: #f0f0f0; 
       border-radius: 8px;
-      /* overflow-y: auto;  <- 스크롤 제거 */
-      overflow: hidden; /* 넘치는 부분 숨김 */
+      overflow: hidden;
       display: flex; 
-      align-items: center; /* 세로 중앙 정렬 */
-      justify-content: center; /* 가로 중앙 정렬 */
+      align-items: center; 
+      justify-content: center; 
       position: relative;
     }
     
-    /* 🔥 [삭제] "NO IMAGE" 텍스트 제거됨 */
-    /* .detail-left::after { ... } 부분이 삭제되었습니다. */
-
-    /* 🔥 [수정] 상세 이미지 스타일 (비율 유지 및 꽉 채우기) */
+    /* 상세 이미지 스타일 */
     .detail-img {
-      /* width: 100%; height: auto; <- 기존 방식 삭제 */
-      max-width: 100%;  /* 부모 너비를 넘지 않음 */
-      max-height: 100%; /* 부모 높이를 넘지 않음 */
-      object-fit: contain; /* 비율 유지하며 박스 안에 맞춤 (잘림 없음) */
+      max-width: 100%; 
+      max-height: 100%;
+      object-fit: contain;
       display: block;
       position: relative; z-index: 1;
     }
@@ -133,7 +128,7 @@
 
   <div id="intro">
     <div>
-      <b>[이미지 비율/정렬 수정 완료]</b><br>
+      <b>[수정 완료]</b><br>
       아이콘을 클릭하면<br>
       사진이 잘리지 않고 중앙에 표시됩니다.
     </div>
@@ -160,231 +155,129 @@
 
   <script>
     // =================================================================
-    // 🔥 데이터 설정 (1번 ~ 15번 전체)
-    // detailImage 경로는 'detail' 폴더 안의 파일명(확장자 포함)과 정확히 일치해야 합니다.
+    // 🔥 데이터 설정
+    // desc 부분에 백틱(`)을 사용하여 오류를 방지했습니다.
     // =================================================================
     const works = [
       {
         id: 'work-1',
-
         imageSrc: './icon/1.png',
-
         detailImage: './detail/detail1.jpg',
-
         title: 'Crawling',
-
         tag: 'logo',
-
-        desc: 'Type design for crawl in Korean.
+        desc: `Type design for crawl in Korean.`
       },
-      
-        {
-
+      {
         id: 'work-2',
-
         imageSrc: './icon/2.png',
-
         detailImage: './detail/detail2.jpg',
-
         title: 'Fortune Wheel',
-
         tag: 'graphic',
-
-        desc: 'Part of the tarot card series based on symmetric shape. Fortune Wheel'
-
+        desc: `Part of the tarot card series based on symmetric shape. Fortune Wheel`
       },
-         {
-
+      {
         id: 'work-3',
-
         imageSrc: './icon/3.png',
-
-        detailImage: '', // 이미지가 없는 경우 -> 회색 빈 박스만 중앙에 뜸
-
+        detailImage: '', 
         title: 'Moaning Sound',
-
         tag: 'editorial',
-
-        desc: 'Book based on moaning sound. Korean alphabet has its own unique pattern used in moaning sound. This book is used to put them altogether in one'
-
+        desc: `Book based on moaning sound. Korean alphabet has its own unique pattern used in moaning sound. This book is used to put them altogether in one`
       },
-          {
-
+      {
         id: 'work-4',
-
         imageSrc: './icon/4.png',
-
         detailImage: './detail/detail4.jpg',
-
         title: 'Lovers',
-
         tag: 'graphic',
-
-        desc: 'Part of the tarot card series based on symmetric shape. The lovers.'
-
+        desc: `Part of the tarot card series based on symmetric shape. The lovers.`
       },
-         {
-
+      {
         id: 'work-5',
-
         imageSrc: './icon/5.png',
-
         detailImage: './detail/detail5.jpg',
-
         title: 'PUSH Door',
-
         tag: 'editorial',
-
-        desc: 'i always adore the moments went PUSH door appear in my life. Assembling those moment will someday give a relief'
-
+        desc: `i always adore the moments went PUSH door appear in my life. Assembling those moment will someday give a relief`
       },
-        {
-
+      {
         id: 'work-6',
-
         imageSrc: './icon/6.png',
-
         detailImage: './detail/detail6.jpg',
-
         title: 'Eyelash',
-
         tag: 'type',
-
-        desc: 'Font design based on anime eyes. Emphasizing those eyelashes they have'
-
+        desc: `Font design based on anime eyes. Emphasizing those eyelashes they have`
       },
-       {
-
+      {
         id: 'work-7',
-
         imageSrc: './icon/7.png',
-
         detailImage: './detail/detail6.jpg',
-
         title: 'Eyelash',
-
         tag: 'type',
-
-        desc: 'Font design based on anime eyes. Emphasizing those eyelashes they have'
-
+        desc: `Font design based on anime eyes. Emphasizing those eyelashes they have`
       },
-        {
-
+      {
         id: 'work-8',
-
         imageSrc: './icon/8.png',
-
         detailImage: './detail/detail6.jpg',
-
         title: 'Eyelash',
-
         tag: 'type',
-
-        desc: 'Font design based on anime eyes. Emphasizing those eyelashes they have'
-
+        desc: `Font design based on anime eyes. Emphasizing those eyelashes they have`
       },
       {
-
         id: 'work-9',
-
         imageSrc: './icon/9.png',
-
         detailImage: './detail/detail9.jpg',
-
         title: 'Star',
-
         tag: 'graphic',
-
-        desc: 'Part of the tarot card series based on symmetric shape. Fortune Wheel'
-
-      },
-       {
-
-        id: 'work-10',
-
-        imageSrc: './icon/10.png',
-
-        detailImage: './detail/detail10.png',
-
-        title: 'Lovecall',
-
-        tag: 'logo',
-
-        desc: 'Korean type design for Love Call.'
-
-      },
-        {
-
-        id: 'work-11',
-
-        imageSrc: './icon/11.png',
-
-        detailImage: './detail/detail11.jpg',
-
-        title: 'Eyeball',
-
-        tag: 'type',
-
-        desc: 'Font design based on american cartoon teens. Bringing life to a letter'
-
-      },
-       {
-
-        id: 'work-12',
-
-        imageSrc: './icon/12.png',
-
-        detailImage: './detail/detail12.jpg',
-
-        title: 'Sharp',
-
-        tag: 'type',
-
-        desc: ''
-
-      },
-       {
-
-        id: 'work-13',
-
-        imageSrc: './icon/13.png',
-
-        detailImage: './detail/detail13.jpg',
-
-        title: 'Sharp',
-
-        tag: 'type',
-
-        desc: ''
-
-      },
-      { id: 'work-14',
-
-        imageSrc: './icon/14.png',
-
-        detailImage: './detail/detail11.jpg',
-
-        title: 'Eyeball',
-
-        tag: 'type',
-
-        desc: 'Font design based on american cartoon teens. Bringing life to a letter.'
-
+        desc: `Part of the tarot card series based on symmetric shape. Fortune Wheel`
       },
       {
-
-        id: 'work-15',
-
-        imageSrc: './icon/15.png',
-
+        id: 'work-10',
+        imageSrc: './icon/10.png',
+        detailImage: './detail/detail10.png',
+        title: 'Lovecall',
+        tag: 'logo',
+        desc: `Korean type design for Love Call.`
+      },
+      {
+        id: 'work-11',
+        imageSrc: './icon/11.png',
         detailImage: './detail/detail11.jpg',
-
         title: 'Eyeball',
-
         tag: 'type',
-
-        desc: 'Font design based on american cartoon teens. Bringing life to a letter.'
-
+        desc: `Font design based on american cartoon teens. Bringing life to a letter`
+      },
+      {
+        id: 'work-12',
+        imageSrc: './icon/12.png',
+        detailImage: './detail/detail12.jpg',
+        title: 'Sharp',
+        tag: 'type',
+        desc: ``
+      },
+      {
+        id: 'work-13',
+        imageSrc: './icon/13.png',
+        detailImage: './detail/detail13.jpg',
+        title: 'Sharp',
+        tag: 'type',
+        desc: ``
+      },
+      {
+        id: 'work-14',
+        imageSrc: './icon/14.png',
+        detailImage: './detail/detail11.jpg',
+        title: 'Eyeball',
+        tag: 'type',
+        desc: `Font design based on american cartoon teens. Bringing life to a letter.`
+      },
+      {
+        id: 'work-15',
+        imageSrc: './icon/15.png',
+        detailImage: './detail/detail11.jpg',
+        title: 'Eyeball',
+        tag: 'type',
+        desc: `Font design based on american cartoon teens. Bringing life to a letter.`
       }
     ];
     // =================================================================
@@ -582,26 +475,22 @@
     }
 
     // =================================================================
-    // 🔥 [업데이트] 이미지 표시 로직
+    // 🔥 [이미지 표시 로직]
     // =================================================================
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.desc;
       
-      // 기본적으로 이미지 박스와 이미지 태그를 보여줌
       detailImgCol.style.display = 'flex';
       detailMainImg.style.display = 'block';
 
-      // 이미지 경로 설정
       if (!work.detailImage || work.detailImage.trim() === "") {
-         // 경로가 비어있으면 -> 이미지만 숨김 (회색 박스만 보임, 글씨 없음)
          detailMainImg.style.display = 'none';
       } else {
          detailMainImg.src = work.detailImage;
       }
 
-      // 로딩 실패(파일 없음) 시 -> 이미지만 숨김 (회색 박스만 보임)
       detailMainImg.onerror = function() {
         this.style.display = 'none'; 
       };
