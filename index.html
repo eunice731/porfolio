@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall - Debug Mode</title>
+  <title>Portfolio Physics Wall - Tight Stacking</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -22,16 +22,10 @@
       pointer-events: none;
       font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; z-index: 5;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.85);
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
-    /* 디버그용 메시지 스타일 */
-    #debug-msg {
-      margin-top: 10px; font-size: 0.8rem; color: red;
-    }
-
-    /* 상세 모달 */
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
@@ -53,8 +47,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>화면을 클릭하면 시작합니다.</div>
-    <div id="debug-msg">이미지 로딩 대기 중...</div>
+    <div>화면을 클릭하면 아이콘이 쏟아집니다.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,10 +60,22 @@
   </div>
 
   <script>
+    // ============================================
+    // ⭐ [핵심 설정] 여기 숫자를 조절하세요!
+    // ============================================
+    
+    // 1.0 = 이미지 크기 그대로 충돌 (붕 떠 보임)
+    // 0.6 ~ 0.7 = 이미지 안쪽 60~70%만 충돌 (가장자리가 겹쳐서 자연스러움)
+    const HITBOX_RATIO = 0.65; 
+
+    // 빨간 박스가 보이는지 여부 (테스트할 때 true, 실사용은 false)
+    const SHOW_HITBOX = false; 
+    
+    // ============================================
+
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
-    const debugMsg = document.getElementById('debug-msg');
 
     // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
@@ -92,79 +97,61 @@
 
     const isMobile = () => window.innerWidth <= 900;
 
-    // ===== 데이터 정의 =====
-    // 이미지 경로가 틀려도 일단 작동하게 수정했습니다.
     const works = Array.from({ length: 15 }, (_, i) => ({
       id: `work-${i+1}`,
       title: `Project ${i+1}`,
       tag: 'Design',
       description: '설명 텍스트입니다.',
       meta: 'Tool',
-      imageSrc: `./icon/${i+1}.png` // 경로 확인: ./icon/1.png
+      imageSrc: `./icon/${i+1}.png`
     }));
 
-    // ===== 이미지 로드 (실패해도 무조건 진행) =====
     const loadedImages = {};
     let loadedCount = 0;
 
     function preloadImages(callback) {
       if (works.length === 0) { callback(); return; }
-      
       works.forEach(work => {
         const img = new Image();
-        img.onload = () => {
-          loadedCount++;
-          checkAllLoaded(callback);
-        };
-        img.onerror = () => {
-          console.warn(`[주의] 이미지를 못 찾았습니다: ${work.imageSrc}`);
-          loadedCount++;
-          checkAllLoaded(callback);
-        };
+        img.onload = () => { loadedCount++; checkAllLoaded(callback); };
+        img.onerror = () => { loadedCount++; checkAllLoaded(callback); };
         img.src = work.imageSrc;
         loadedImages[work.id] = img;
       });
     }
 
     function checkAllLoaded(callback) {
-      debugMsg.innerText = `로딩 중: ${loadedCount} / ${works.length}`;
-      if (loadedCount === works.length) {
-        debugMsg.innerText = "로딩 완료! (이미지가 없으면 색상 박스로 나옵니다)";
-        // 잠시 후 콜백 실행
-        setTimeout(callback, 100);
-      }
+      if (loadedCount === works.length) setTimeout(callback, 100);
     }
 
-    // ===== 물리 엔진 =====
+    // 물리 변수
     const shapes = [];
     let hasSpawned = false;
     const gravity = 800;
-    const damping = 0.6;
-    const friction = 0.96;
+    const damping = 0.5; // 반발력 낮춤 (덜 튕김)
+    const friction = 0.94; // 마찰력 높임 (잘 멈춤)
     let lastTime = null;
-
-    // 랜덤 색상 (이미지 없을 때 사용)
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
 
     function spawnShapes() {
       const w = window.innerWidth;
       const count = works.length;
-      const baseSize = isMobile() ? 100 : 120;
+      const baseSize = isMobile() ? 90 : 110;
 
-      shapes.length = 0; // 초기화
+      shapes.length = 0;
 
       for (let i = 0; i < count; i++) {
         const work = works[i];
         const img = loadedImages[work.id];
         
-        // 이미지가 로드되었고 크기가 있으면 그 비율 사용, 아니면 정사각형
         let width = baseSize;
         let height = baseSize;
         let useImage = false;
 
+        // 이미지 비율 계산
         if (img && img.complete && img.naturalWidth > 0) {
           const aspect = img.naturalHeight / img.naturalWidth;
-          width = baseSize + (Math.random() - 0.5) * 40;
+          width = baseSize + (Math.random() - 0.5) * 30;
           height = width * aspect;
           useImage = true;
         }
@@ -175,14 +162,16 @@
         shapes.push({
           id: work.id,
           x, y, 
-          vx: (Math.random() - 0.5) * 100, 
+          vx: (Math.random() - 0.5) * 80, 
           vy: 0,
+          // 실제 보이는 크기
           width, height,
-          // 충돌 박스는 약간 작게 (타이트한 박스)
-          hitWidth: width * 0.85,
-          hitHeight: height * 0.85,
-          image: useImage ? img : null, // 이미지가 유효할 때만 넣음
-          color: colors[i % colors.length], // 이미지가 없을 때 쓸 색상
+          // ⭐ 충돌 계산용 크기 (작게 만듦)
+          hitWidth: width * HITBOX_RATIO,
+          hitHeight: height * HITBOX_RATIO,
+          
+          image: useImage ? img : null,
+          color: colors[i % colors.length],
           work,
           isDragging: false
         });
@@ -193,7 +182,6 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      // 1. 물리 적용
       for (const s of shapes) {
         if (!s.isDragging) {
           s.vy += gravity * dt;
@@ -203,7 +191,7 @@
         }
       }
 
-      // 2. 벽 충돌
+      // 벽 충돌 (작은 hitBox 기준)
       for (const s of shapes) {
         const halfW = s.hitWidth / 2;
         const halfH = s.hitHeight / 2;
@@ -213,7 +201,7 @@
         if (s.x + halfW > w) { s.x = w - halfW; if(s.vx > 0) s.vx = -s.vx * damping; }
       }
 
-      // 3. 상호 충돌 (AABB)
+      // 상호 충돌 (작은 hitBox 기준)
       for (let i = 0; i < shapes.length; i++) {
         for (let j = i + 1; j < shapes.length; j++) {
           const a = shapes[i];
@@ -222,6 +210,8 @@
 
           const dx = b.x - a.x;
           const dy = b.y - a.y;
+          
+          // 충돌 거리를 작게 잡음
           const combinedHalfW = (a.hitWidth + b.hitWidth) / 2;
           const combinedHalfH = (a.hitHeight + b.hitHeight) / 2;
           
@@ -246,7 +236,8 @@
               if (relVy * ny < 0) {
                  const impulse = relVy * (1 + damping) * 0.5;
                  a.vy += impulse; b.vy -= impulse;
-                 if(Math.abs(a.vx)<50 && Math.abs(b.vx)<50){ a.vx*=0.9; b.vx*=0.9; }
+                 // 스태킹 안정화
+                 if(Math.abs(a.vx)<40 && Math.abs(b.vx)<40){ a.vx*=0.85; b.vx*=0.85; }
               }
             }
           }
@@ -262,22 +253,20 @@
         ctx.translate(s.x, s.y);
 
         if (s.image) {
-          // 이미지가 있으면 이미지 그리기
+          // 이미지는 "큰 사이즈(원본)" 그대로 그리기
           ctx.drawImage(s.image, -s.width/2, -s.height/2, s.width, s.height);
         } else {
-          // 이미지가 없으면 색깔 박스 그리기 (디버깅용)
           ctx.fillStyle = s.color;
           ctx.fillRect(-s.width/2, -s.height/2, s.width, s.height);
-          
-          // X 표시
-          ctx.beginPath();
-          ctx.strokeStyle = '#fff';
-          ctx.moveTo(-s.width/2, -s.height/2);
-          ctx.lineTo(s.width/2, s.height/2);
-          ctx.moveTo(s.width/2, -s.height/2);
-          ctx.lineTo(-s.width/2, s.height/2);
-          ctx.stroke();
         }
+
+        // [디버깅] 충돌 박스가 어디인지 눈으로 확인하기 (SHOW_HITBOX = true 일 때만)
+        if (SHOW_HITBOX) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-s.hitWidth/2, -s.hitHeight/2, s.hitWidth, s.hitHeight);
+        }
+
         ctx.restore();
       }
     }
@@ -296,7 +285,6 @@
     }
 
     function onReady() {
-      // 준비 완료 되면 클릭 이벤트 연결
       const start = () => {
         if (!hasSpawned) {
           hasSpawned = true;
@@ -306,26 +294,32 @@
       };
       document.body.addEventListener('click', start, { once: true });
       document.body.addEventListener('touchstart', start, { once: true, passive: true });
-      
       requestAnimationFrame(loop);
     }
 
-    // 시작
     preloadImages(onReady);
 
-    // 모달 닫기 이벤트
+    // 모달 및 포인터 이벤트
     function hideDetail() { detailOverlay.classList.remove('open'); }
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
+    function showDetail(work) {
+      detailTitle.textContent = work.title;
+      detailTag.textContent = work.tag;
+      detailBody.textContent = work.description;
+      detailOverlay.classList.add('open');
+    }
 
-    // 포인터 이벤트 (간략화)
     let isPointerDown = false;
     let dragTarget = null;
     let lastX=0, lastY=0;
+    let downTime=0;
+    let moveDist=0;
 
     function getShapeAt(x, y) {
       for (let i = shapes.length - 1; i >= 0; i--) {
         const s = shapes[i];
+        // 클릭/드래그는 이미지가 보이는 영역 기준 (사용자 경험상 이게 좋음)
         if (x >= s.x - s.width/2 && x <= s.x + s.width/2 &&
             y >= s.y - s.height/2 && y <= s.y + s.height/2) return s;
       }
@@ -339,6 +333,8 @@
       const y = e.clientY - r.top;
       lastX = x; lastY = y;
       isPointerDown = true;
+      downTime = performance.now();
+      moveDist = 0;
       const s = getShapeAt(x, y);
       if (s) {
         dragTarget = s;
@@ -354,6 +350,7 @@
       const x = e.clientX - r.left;
       const y = e.clientY - r.top;
       const dx = x - lastX; const dy = y - lastY;
+      moveDist += Math.sqrt(dx*dx + dy*dy);
       lastX = x; lastY = y;
       if (dragTarget) {
         dragTarget.x += dx; dragTarget.y += dy;
@@ -363,8 +360,15 @@
 
     canvas.addEventListener('pointerup', e => {
       isPointerDown = false;
+      const elapsed = performance.now() - downTime;
       if(dragTarget) dragTarget.isDragging = false;
-      // 클릭 판정 등은 생략 (디버깅 우선)
+      
+      let clicked = dragTarget;
+      if (!clicked) clicked = getShapeAt(lastX, lastY);
+
+      if (clicked && moveDist < 10 && elapsed < 300) {
+        showDetail(clicked.work);
+      }
       dragTarget = null;
     });
 
