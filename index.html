@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Contour Trick</title>
+  <title>Physics Wall - Huge Size</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>윤곽선에 맞춰 모서리를 깎아냈습니다.<br>클릭하여 확인하세요.</div>
+    <div>초대형 아이콘 모드입니다.<br>클릭하여 시작하세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,21 +67,13 @@
 
   <script>
     // =================================================================
-    // ⭐ [핵심 수정] 윤곽선 인식을 흉내내는 설정 ⭐
+    // ⭐ 설정값 조절 ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (0.85 추천)
-    // 1.0으로 하면 투명 여백 때문에 떠 보입니다.
-    // 0.85로 하면 투명한 외곽을 무시하고 안쪽 실제 그림끼리 닿는 느낌을 줍니다.
-    const HITBOX_SCALE = 0.85; 
+    // 1. 충돌 박스 크기 (0.6 = 60% 크기)
+    const HITBOX_SCALE = 0.6; 
 
-    // 2. 모서리 깎기 강도 (0.0 ~ 0.5)
-    // 0 = 직각 네모 (여백 생김)
-    // 0.4 = 거의 원형/타원형 (여백 사라짐, 추천)
-    // PNG의 투명한 모서리 부분을 물리적으로 잘라냅니다.
-    const CORNER_RADIUS_RATIO = 0.4;
-
-    // 3. 바닥 높이 띄우기 (px)
+    // 2. 바닥 높이 띄우기 (px)
     const FLOOR_OFFSET = 100; 
     
     // =================================================================
@@ -126,10 +118,7 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    const engine = Engine.create({
-      positionIterations: 10,
-      velocityIterations: 10
-    });
+    const engine = Engine.create();
     const world = engine.world;
     engine.gravity.y = 1;
 
@@ -164,9 +153,11 @@
       Composite.add(world, walls);
     }
 
-    // ===== 아이콘 생성 (모서리 깎기 적용) =====
+    // ===== ⭐ 여기가 사이즈 조절하는 곳입니다 ⭐ =====
     function spawnBoxes() {
       const w = window.innerWidth;
+      
+      // [수정] 모바일 200px, PC 300px로 대폭 확대
       const baseSize = isMobile() ? 200 : 300;
 
       works.forEach((work, i) => {
@@ -177,30 +168,23 @@
         
         if (img && img.naturalWidth) {
           const aspect = img.naturalHeight / img.naturalWidth;
-          visualWidth = baseSize + (Math.random() - 0.5) * 50; 
+          visualWidth = baseSize + (Math.random() - 0.5) * 50; // 랜덤 변화폭도 조금 늘림
           visualHeight = visualWidth * aspect;
         }
 
-        // 물리 크기 계산
         const physWidth = visualWidth * HITBOX_SCALE;
         const physHeight = visualHeight * HITBOX_SCALE;
 
-        // [핵심] 모서리 깎기 (Chamfer) 반지름 계산
-        // 너비와 높이 중 작은 쪽의 40% 정도를 깎아내면 '알약' 모양이 됨
-        // 이렇게 하면 사각형의 투명한 꼭짓점 부분이 물리적으로 사라짐!
-        const chamferRadius = Math.min(physWidth, physHeight) * CORNER_RADIUS_RATIO;
-
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 2000 - 300; 
+        const y = -Math.random() * 2000 - 300; // 더 커졌으니 훨씬 더 높이서 떨어뜨림
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          // 모서리를 둥글게 깎아서 윤곽선 효과를 냄
-          chamfer: { radius: chamferRadius }, 
-          restitution: 0.2,
-          friction: 0.5,
+          chamfer: { radius: 30 * HITBOX_SCALE },
+          restitution: 0.5,
+          friction: 0.3,
           frictionAir: 0.005, 
-          density: 0.005,
+          density: 0.002, 
           render: { visible: false },
           customData: { 
               work, 
@@ -238,25 +222,12 @@
           ctx.translate(x, y);
           ctx.rotate(angle);
           if (image.complete && image.naturalWidth !== 0) {
-             // 렌더링은 원본 직사각형 이미지 그대로
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
              ctx.fillStyle = '#ccc';
              ctx.fillRect(-width/2, -height/2, width, height);
           }
           ctx.restore();
-          
-          // [디버그용] 실제 물리 충돌 박스가 어떻게 생겼는지 보고 싶으면 주석 해제하세요
-          /*
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(angle);
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          // 알약 모양 확인용
-          ctx.strokeRect(-width*HITBOX_SCALE/2, -height*HITBOX_SCALE/2, width*HITBOX_SCALE, height*HITBOX_SCALE); 
-          ctx.restore();
-          */
         }
       }
       requestAnimationFrame(renderLoop);
