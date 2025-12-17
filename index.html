@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - No Overlap</title>
+  <title>Physics Wall - Solid & Exact</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>이미지가 겹치지 않고 단단하게 쌓입니다.<br>클릭하여 시작하세요.</div>
+    <div>이제 겹치지 않고 칼같이 맞닿습니다.<br>클릭하여 시작하세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,13 +67,13 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 조절 (핵심 수정) ⭐
+    // ⭐ 설정값 조절 (완벽한 접촉을 위한 설정) ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (0.95 = 95%)
-    // 이미지의 가장자리 5% 투명 영역만 무시하고, 나머지 95%는 단단한 물체로 인식합니다.
-    // 서로 겹치지 않고 "딱" 맞닿게 됩니다.
-    const HITBOX_SCALE = 0.95; 
+    // 1. 충돌 박스 크기 = 1.0 (100%)
+    // 이미지 크기와 물리 박스 크기를 완전히 일치시킵니다.
+    // 절대 서로 파고들지 않습니다.
+    const HITBOX_SCALE = 1.0; 
 
     // 2. 바닥 높이 띄우기 (px)
     const FLOOR_OFFSET = 100; 
@@ -120,7 +120,14 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    const engine = Engine.create();
+    // [수정] 물리 엔진 정밀도 향상
+    // positionIterations, velocityIterations를 높여서 
+    // 물체가 서로 겹치거나 뚫고 들어가는(Sinking) 현상을 방지
+    const engine = Engine.create({
+      positionIterations: 10,
+      velocityIterations: 10
+    });
+    
     const world = engine.world;
     engine.gravity.y = 1;
 
@@ -159,7 +166,7 @@
     function spawnBoxes() {
       const w = window.innerWidth;
       
-      // 모바일 200px, PC 300px (크기 유지)
+      // 모바일 200px, PC 300px (큰 사이즈 유지)
       const baseSize = isMobile() ? 200 : 300;
 
       works.forEach((work, i) => {
@@ -174,6 +181,7 @@
           visualHeight = visualWidth * aspect;
         }
 
+        // 충돌 박스 크기 = 시각적 크기 (1:1)
         const physWidth = visualWidth * HITBOX_SCALE;
         const physHeight = visualHeight * HITBOX_SCALE;
 
@@ -182,11 +190,12 @@
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 20 }, // 둥근 모서리는 살짝 줄임 (충돌 정확도 위해)
-          restitution: 0.5,
-          friction: 0.3,
+          // [수정] 모서리를 0으로 만들어 '칼같이' 닿게 함
+          chamfer: { radius: 0 }, 
+          restitution: 0.2, // 탄성 줄임 (덜 통통 튀게)
+          friction: 0.5,    // 마찰력 높임 (잘 쌓이게)
           frictionAir: 0.005, 
-          density: 0.002, 
+          density: 0.005,   // 밀도 높임 (묵직하게)
           render: { visible: false },
           customData: { 
               work, 
@@ -224,6 +233,7 @@
           ctx.translate(x, y);
           ctx.rotate(angle);
           if (image.complete && image.naturalWidth !== 0) {
+             // 1:1 크기이므로 정확히 해당 영역에 그림
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
              ctx.fillStyle = '#ccc';
