@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Throw & Smash</title>
+  <title>Physics Wall - Final Fixed</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -12,15 +12,14 @@
       overflow: hidden;
       font-family: system-ui, -apple-system, sans-serif;
       background: #ffffff;
+      touch-action: none; /* 모바일 터치 스크롤 막기 (필수) */
     }
     canvas {
       position: fixed; inset: 0; display: block;
-      width: 100%; height: 100%; touch-action: none;
-      cursor: grab; /* 마우스 커서 손모양 */
+      width: 100%; height: 100%; 
+      cursor: grab;
     }
-    canvas:active {
-      cursor: grabbing; /* 잡았을 때 꽉 쥔 손모양 */
-    }
+    canvas:active { cursor: grabbing; }
     
     #intro {
       position: fixed; inset: 0;
@@ -54,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>화면을 클릭하면 아이콘들이 쏟아집니다.<br>잡아서 던져보세요!</div>
+    <div>화면을 클릭하면 시작합니다.<br>아이콘을 잡아서 던져보세요!</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -74,8 +73,7 @@
           Events = Matter.Events,
           Mouse = Matter.Mouse,
           MouseConstraint = Matter.MouseConstraint,
-          Body = Matter.Body,
-          Vector = Matter.Vector;
+          Body = Matter.Body;
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -110,16 +108,34 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    // 물리 엔진 초기화
     const engine = Engine.create();
     const world = engine.world;
-    
-    // 중력 설정 (0.8 정도로 적당하게)
-    engine.gravity.y = 0.8;
+    engine.gravity.y = 1; // 중력 정상화
 
     const isMobile = () => window.innerWidth <= 900;
-
     let walls = [];
+
+    // ===== 1. 마우스/터치 설정 (여기가 수정됨!) =====
+    const mouse = Mouse.create(canvas);
+    
+    // [핵심 수정] 고해상도 화면에서 좌표가 어긋나지 않게 픽셀 비율을 알려줌
+    const dpr = window.devicePixelRatio || 1;
+    mouse.pixelRatio = dpr;
+
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2, // 꽉 잡는 강도
+        render: { visible: false }
+      }
+    });
+    Composite.add(world, mouseConstraint);
+
+    // 스크롤 방지
+    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
+    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
+
+    // ===== 2. 벽 생성 =====
     function createWalls() {
       Composite.remove(world, walls);
       const w = window.innerWidth;
@@ -127,13 +143,14 @@
       const thick = 200;
       
       walls = [
-        Bodies.rectangle(w/2, h + thick/2, w * 3, thick, { isStatic: true, render: { visible: false } }),
-        Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
-        Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
+        Bodies.rectangle(w/2, h + thick/2, w * 3, thick, { isStatic: true, render: { visible: false } }), // 바닥
+        Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }), // 왼쪽
+        Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }) // 오른쪽
       ];
       Composite.add(world, walls);
     }
 
+    // ===== 3. 아이콘 생성 =====
     function spawnBoxes() {
       const w = window.innerWidth;
       const baseSize = isMobile() ? 90 : 110;
@@ -150,27 +167,26 @@
         }
 
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 1500 - 200; 
+        const y = -Math.random() * 1000 - 200;
         
         const body = Bodies.rectangle(x, y, width, height, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 20 }, // 둥근 모서리 (잘 구름)
-          restitution: 0.5, // 탄성
-          friction: 0.3, 
-          frictionAir: 0.005, // 공기 저항을 아주 약간만 줌
-          density: 0.002, // [핵심] 무게감을 약간 주어 던질 때 묵직하게
+          chamfer: { radius: 20 }, // 둥근 모서리
+          restitution: 0.5,
+          friction: 0.3,
+          frictionAir: 0.005, // 공기 저항 낮음 (잘 날아감)
+          density: 0.002, // 묵직함
           render: { sprite: { texture: work.imageSrc } },
           customData: { work: work, image: img, width: width, height: height }
         });
 
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.25);
-        Body.setVelocity(body, { x: (Math.random() - 0.5) * 10, y: 0 });
-
+        // 초기 랜덤 회전
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
         Composite.add(world, body);
       });
     }
 
-    // 렌더링 루프
+    // ===== 4. 렌더링 루프 =====
     function renderLoop() {
       Engine.update(engine, 1000 / 60);
 
@@ -205,41 +221,15 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== ⭐ 마우스/터치 컨트롤 강화 (핵심 수정) ⭐ =====
-    const mouse = Mouse.create(canvas);
-    const mouseConstraint = MouseConstraint.create(engine, {
-      mouse: mouse,
-      constraint: {
-        // [중요] stiffness: 0.2 (꽉 잡음)
-        // 0.01 = 고무줄, 1.0 = 쇠막대기. 0.2 정도가 탄탄하면서 부드러움
-        stiffness: 0.2, 
-        render: { visible: false }
-      }
-    });
-    Composite.add(world, mouseConstraint);
-    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
-    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
-
+    // ===== 5. 이벤트 핸들링 =====
     let isDragging = false;
-    
-    // 드래그 시작될 때
-    Events.on(mouseConstraint, 'startdrag', (event) => {
-      isDragging = true;
-      // 잡고 있는 물체는 회전 속도를 줄여서 잡기 편하게 함 (선택사항)
-      // Body.setAngularVelocity(event.body, 0); 
-    });
-
-    // 드래그 끝날 때
-    Events.on(mouseConstraint, 'enddrag', (event) => {
-      // 놓는 순간 딜레이를 줘서 바로 클릭 이벤트가 뜨지 않게 함
-      setTimeout(() => isDragging = false, 50); 
-    });
+    Events.on(mouseConstraint, 'startdrag', () => { isDragging = true; });
+    Events.on(mouseConstraint, 'enddrag', () => { setTimeout(() => isDragging = false, 50); });
     
     Events.on(mouseConstraint, 'mouseup', (event) => {
       if (!isDragging) {
         const mousePos = event.mouse.position;
         const bodies = Composite.allBodies(world);
-        // 클릭 판정
         const clickedBodies = Matter.Query.point(bodies, mousePos);
         if (clickedBodies.length > 0) {
              const body = clickedBodies[0];
@@ -248,7 +238,6 @@
       }
     });
 
-    // 화면 리사이즈
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
@@ -256,6 +245,10 @@
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
       ctx.scale(dpr, dpr);
+      
+      // [중요] 리사이즈 할 때마다 마우스 좌표계도 업데이트
+      mouse.pixelRatio = dpr; 
+      
       createWalls();
     }
     window.addEventListener('resize', resizeCanvas);
