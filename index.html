@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall - Tight Stacking</title>
+  <title>Portfolio Physics Wall - Real Rotation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -13,7 +15,7 @@
     }
     canvas {
       position: fixed; inset: 0; display: block;
-      background: #ffffff; touch-action: none;
+      width: 100%; height: 100%; touch-action: none;
     }
     #intro {
       position: fixed; inset: 0;
@@ -60,52 +62,36 @@
   </div>
 
   <script>
-    // ============================================
-    // ⭐ [핵심 설정] 여기 숫자를 조절하세요!
-    // ============================================
-    
-    // 1.0 = 이미지 크기 그대로 충돌 (붕 떠 보임)
-    // 0.6 ~ 0.7 = 이미지 안쪽 60~70%만 충돌 (가장자리가 겹쳐서 자연스러움)
-    const HITBOX_RATIO = 0.65; 
+    // Matter.js 모듈 별칭
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Composite = Matter.Composite,
+          Events = Matter.Events,
+          Mouse = Matter.Mouse,
+          MouseConstraint = Matter.MouseConstraint,
+          Body = Matter.Body;
 
-    // 빨간 박스가 보이는지 여부 (테스트할 때 true, 실사용은 false)
-    const SHOW_HITBOX = false; 
-    
-    // ============================================
-
+    // HTML 요소
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
-
-    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
     const detailClose = document.getElementById('detailClose');
 
-    function resize() {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = window.innerHeight + 'px';
-      ctx.scale(dpr, dpr);
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    const isMobile = () => window.innerWidth <= 900;
-
+    // 데이터 정의 (1.png ~ 15.png)
     const works = Array.from({ length: 15 }, (_, i) => ({
       id: `work-${i+1}`,
       title: `Project ${i+1}`,
       tag: 'Design',
-      description: '설명 텍스트입니다.',
-      meta: 'Tool',
+      description: '프로젝트 설명입니다.',
       imageSrc: `./icon/${i+1}.png`
     }));
 
+    // 이미지 프리로드
     const loadedImages = {};
     let loadedCount = 0;
 
@@ -113,264 +99,207 @@
       if (works.length === 0) { callback(); return; }
       works.forEach(work => {
         const img = new Image();
-        img.onload = () => { loadedCount++; checkAllLoaded(callback); };
-        img.onerror = () => { loadedCount++; checkAllLoaded(callback); };
+        img.onload = () => { loadedCount++; checkLoaded(callback); };
+        img.onerror = () => { loadedCount++; checkLoaded(callback); };
         img.src = work.imageSrc;
         loadedImages[work.id] = img;
       });
     }
-
-    function checkAllLoaded(callback) {
-      if (loadedCount === works.length) setTimeout(callback, 100);
+    function checkLoaded(callback) {
+      if (loadedCount === works.length) callback();
     }
 
-    // 물리 변수
-    const shapes = [];
-    let hasSpawned = false;
-    const gravity = 800;
-    const damping = 0.5; // 반발력 낮춤 (덜 튕김)
-    const friction = 0.94; // 마찰력 높임 (잘 멈춤)
-    let lastTime = null;
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+    // ===== 물리 엔진 설정 =====
+    const engine = Engine.create();
+    const world = engine.world;
+    
+    // 모바일 감지
+    const isMobile = () => window.innerWidth <= 900;
 
-    function spawnShapes() {
+    // 벽 생성 함수
+    let walls = [];
+    function createWalls() {
+      Composite.remove(world, walls);
       const w = window.innerWidth;
-      const count = works.length;
+      const h = window.innerHeight;
+      const thick = 100;
+      
+      walls = [
+        Bodies.rectangle(w/2, h + thick/2, w, thick, { isStatic: true, render: { visible: false } }), // 바닥
+        Bodies.rectangle(-thick/2, h/2, thick, h * 5, { isStatic: true, render: { visible: false } }), // 왼쪽
+        Bodies.rectangle(w + thick/2, h/2, thick, h * 5, { isStatic: true, render: { visible: false } }) // 오른쪽
+      ];
+      Composite.add(world, walls);
+    }
+
+    // 아이콘(박스) 생성 함수
+    function spawnBoxes() {
+      const w = window.innerWidth;
       const baseSize = isMobile() ? 90 : 110;
 
-      shapes.length = 0;
-
-      for (let i = 0; i < count; i++) {
-        const work = works[i];
+      works.forEach((work, i) => {
         const img = loadedImages[work.id];
-        
         let width = baseSize;
         let height = baseSize;
-        let useImage = false;
-
-        // 이미지 비율 계산
-        if (img && img.complete && img.naturalWidth > 0) {
+        
+        // 이미지 비율 유지
+        if (img && img.naturalWidth) {
           const aspect = img.naturalHeight / img.naturalWidth;
           width = baseSize + (Math.random() - 0.5) * 30;
           height = width * aspect;
-          useImage = true;
         }
 
-        const x = width + Math.random() * (w - 2 * width);
-        const y = -200 - Math.random() * 500;
+        // 랜덤 위치 및 회전
+        const x = Math.random() * (w - 200) + 100;
+        const y = -Math.random() * 1000 - 200; // 위쪽으로 높게 분산
+        const angle = Math.random() * Math.PI * 2; // 0 ~ 360도 랜덤 회전
 
-        shapes.push({
-          id: work.id,
-          x, y, 
-          vx: (Math.random() - 0.5) * 80, 
-          vy: 0,
-          // 실제 보이는 크기
-          width, height,
-          // ⭐ 충돌 계산용 크기 (작게 만듦)
-          hitWidth: width * HITBOX_RATIO,
-          hitHeight: height * HITBOX_RATIO,
-          
-          image: useImage ? img : null,
-          color: colors[i % colors.length],
-          work,
-          isDragging: false
+        const body = Bodies.rectangle(x, y, width, height, {
+          angle: angle,
+          restitution: 0.4, // 탄성 (튕김 정도)
+          friction: 0.5,    // 마찰
+          frictionAir: 0.02, // 공기 저항 (천천히 떨어짐)
+          // 중요: 이미지 정보를 body에 저장
+          render: {
+            sprite: { texture: work.imageSrc } // Matter.js는 이걸 참조하지 않지만 우리가 쓸 데이터
+          },
+          customData: {
+            work: work,
+            image: img,
+            width: width,
+            height: height
+          }
         });
-      }
+
+        // 초기 회전력(토크) 부여 -> 뚝 떨어지지 않고 돌면서 떨어짐
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
+        
+        Composite.add(world, body);
+      });
     }
 
-    function update(dt) {
+    // ===== 커스텀 렌더링 루프 =====
+    // Matter.Render를 쓰지 않고 직접 Canvas에 그립니다 (이미지 제어 최적화)
+    const ctx = canvas.getContext('2d');
+
+    function renderLoop() {
+      // 1. 물리 계산 업데이트
+      Engine.update(engine, 1000 / 60);
+
+      // 2. 화면 지우기
       const w = window.innerWidth;
       const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
 
-      for (const s of shapes) {
-        if (!s.isDragging) {
-          s.vy += gravity * dt;
-          s.x += s.vx * dt;
-          s.y += s.vy * dt;
-          s.vx *= friction;
-        }
-      }
+      // 3. 모든 물체 그리기
+      const bodies = Composite.allBodies(world);
+      
+      ctx.beginPath();
+      for (let i = 0; i < bodies.length; i += 1) {
+        const body = bodies[i];
+        if (body.isStatic) continue; // 벽은 안 그림
 
-      // 벽 충돌 (작은 hitBox 기준)
-      for (const s of shapes) {
-        const halfW = s.hitWidth / 2;
-        const halfH = s.hitHeight / 2;
+        const { x, y } = body.position;
+        const { width, height, image, work } = body.customData || {};
+        const angle = body.angle;
 
-        if (s.y + halfH > h) { s.y = h - halfH; if(s.vy > 0) s.vy = -s.vy * damping; }
-        if (s.x - halfW < 0) { s.x = halfW; if(s.vx < 0) s.vx = -s.vx * damping; }
-        if (s.x + halfW > w) { s.x = w - halfW; if(s.vx > 0) s.vx = -s.vx * damping; }
-      }
-
-      // 상호 충돌 (작은 hitBox 기준)
-      for (let i = 0; i < shapes.length; i++) {
-        for (let j = i + 1; j < shapes.length; j++) {
-          const a = shapes[i];
-          const b = shapes[j];
-          if (a.isDragging || b.isDragging) continue;
-
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
+        if (image) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle); // [핵심] 물체의 회전값 적용
           
-          // 충돌 거리를 작게 잡음
-          const combinedHalfW = (a.hitWidth + b.hitWidth) / 2;
-          const combinedHalfH = (a.hitHeight + b.hitHeight) / 2;
-          
-          const overlapX = combinedHalfW - Math.abs(dx);
-          const overlapY = combinedHalfH - Math.abs(dy);
-
-          if (overlapX > 0 && overlapY > 0) {
-            if (overlapX < overlapY) {
-              const nx = dx > 0 ? 1 : -1;
-              a.x -= nx * overlapX * 0.5;
-              b.x += nx * overlapX * 0.5;
-              const relVx = b.vx - a.vx;
-              if (relVx * nx < 0) {
-                 const impulse = relVx * (1 + damping) * 0.5;
-                 a.vx += impulse; b.vx -= impulse;
-              }
-            } else {
-              const ny = dy > 0 ? 1 : -1;
-              a.y -= ny * overlapY * 0.5;
-              b.y += ny * overlapY * 0.5;
-              const relVy = b.vy - a.vy;
-              if (relVy * ny < 0) {
-                 const impulse = relVy * (1 + damping) * 0.5;
-                 a.vy += impulse; b.vy -= impulse;
-                 // 스태킹 안정화
-                 if(Math.abs(a.vx)<40 && Math.abs(b.vx)<40){ a.vx*=0.85; b.vx*=0.85; }
-              }
-            }
+          // 이미지 그리기
+          if (image.complete && image.naturalWidth !== 0) {
+             ctx.drawImage(image, -width/2, -height/2, width, height);
+          } else {
+             ctx.fillStyle = '#ccc';
+             ctx.fillRect(-width/2, -height/2, width, height);
           }
+          ctx.restore();
         }
       }
+      
+      requestAnimationFrame(renderLoop);
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-
-      for (const s of shapes) {
-        ctx.save();
-        ctx.translate(s.x, s.y);
-
-        if (s.image) {
-          // 이미지는 "큰 사이즈(원본)" 그대로 그리기
-          ctx.drawImage(s.image, -s.width/2, -s.height/2, s.width, s.height);
-        } else {
-          ctx.fillStyle = s.color;
-          ctx.fillRect(-s.width/2, -s.height/2, s.width, s.height);
-        }
-
-        // [디버깅] 충돌 박스가 어디인지 눈으로 확인하기 (SHOW_HITBOX = true 일 때만)
-        if (SHOW_HITBOX) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(-s.hitWidth/2, -s.hitHeight/2, s.hitWidth, s.hitHeight);
-        }
-
-        ctx.restore();
+    // ===== 마우스/터치 인터랙션 (Matter.js 내장 기능) =====
+    const mouse = Mouse.create(canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
       }
-    }
+    });
+    Composite.add(world, mouseConstraint);
 
-    function loop(timestamp) {
-      if (!lastTime) lastTime = timestamp;
-      const dt = Math.min((timestamp - lastTime) / 1000, 0.02);
-      lastTime = timestamp;
+    // 스크롤 방지
+    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
+    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
 
-      if (hasSpawned) {
-        update(dt*0.5);
-        update(dt*0.5);
-        draw();
-      }
-      requestAnimationFrame(loop);
-    }
+    // 클릭 시 상세 모달 띄우기 (드래그가 아닐 때만)
+    let isDragging = false;
+    Events.on(mouseConstraint, 'startdrag', () => { isDragging = true; });
+    Events.on(mouseConstraint, 'enddrag', () => { 
+      // 드래그가 끝난 직후 클릭으로 오인되지 않게 잠시 딜레이
+      setTimeout(() => isDragging = false, 50); 
+    });
+    
+    Events.on(mouseConstraint, 'mouseup', (event) => {
+      if (!isDragging) {
+        const mousePos = event.mouse.position;
+        // 클릭한 위치에 있는 바디 찾기
+        const bodies = Composite.allBodies(world);
+        const clickedBody = Matter.Query.point(bodies, mousePos)[0];
 
-    function onReady() {
-      const start = () => {
-        if (!hasSpawned) {
-          hasSpawned = true;
-          intro.classList.add('hidden');
-          spawnShapes();
+        if (clickedBody && clickedBody.customData) {
+          showDetail(clickedBody.customData.work);
         }
-      };
+      }
+    });
+
+    // ===== 초기화 및 이벤트 리스너 =====
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.scale(dpr, dpr);
+      
+      // 벽 위치 재조정
+      createWalls();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // 시작 로직
+    let hasStarted = false;
+    function start() {
+      if (hasStarted) return;
+      hasStarted = true;
+      intro.classList.add('hidden');
+      resizeCanvas();
+      spawnBoxes();
+      renderLoop();
+    }
+
+    // 이미지 로드 후 대기
+    preloadImages(() => {
+      // 화면 클릭 시 시작
       document.body.addEventListener('click', start, { once: true });
-      document.body.addEventListener('touchstart', start, { once: true, passive: true });
-      requestAnimationFrame(loop);
-    }
+      document.body.addEventListener('touchstart', start, { once: true });
+    });
 
-    preloadImages(onReady);
-
-    // 모달 및 포인터 이벤트
-    function hideDetail() { detailOverlay.classList.remove('open'); }
-    detailClose.addEventListener('click', hideDetail);
-    detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
+    // 모달 제어
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.description;
       detailOverlay.classList.add('open');
     }
-
-    let isPointerDown = false;
-    let dragTarget = null;
-    let lastX=0, lastY=0;
-    let downTime=0;
-    let moveDist=0;
-
-    function getShapeAt(x, y) {
-      for (let i = shapes.length - 1; i >= 0; i--) {
-        const s = shapes[i];
-        // 클릭/드래그는 이미지가 보이는 영역 기준 (사용자 경험상 이게 좋음)
-        if (x >= s.x - s.width/2 && x <= s.x + s.width/2 &&
-            y >= s.y - s.height/2 && y <= s.y + s.height/2) return s;
-      }
-      return null;
-    }
-
-    canvas.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      const r = canvas.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      lastX = x; lastY = y;
-      isPointerDown = true;
-      downTime = performance.now();
-      moveDist = 0;
-      const s = getShapeAt(x, y);
-      if (s) {
-        dragTarget = s;
-        s.isDragging = true;
-        s.vx = 0; s.vy = 0;
-      }
-    });
-
-    canvas.addEventListener('pointermove', e => {
-      e.preventDefault();
-      if (!isPointerDown) return;
-      const r = canvas.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      const dx = x - lastX; const dy = y - lastY;
-      moveDist += Math.sqrt(dx*dx + dy*dy);
-      lastX = x; lastY = y;
-      if (dragTarget) {
-        dragTarget.x += dx; dragTarget.y += dy;
-        dragTarget.vx = dx * 10; dragTarget.vy = dy * 10;
-      }
-    });
-
-    canvas.addEventListener('pointerup', e => {
-      isPointerDown = false;
-      const elapsed = performance.now() - downTime;
-      if(dragTarget) dragTarget.isDragging = false;
-      
-      let clicked = dragTarget;
-      if (!clicked) clicked = getShapeAt(lastX, lastY);
-
-      if (clicked && moveDist < 10 && elapsed < 300) {
-        showDetail(clicked.work);
-      }
-      dragTarget = null;
-    });
+    function hideDetail() { detailOverlay.classList.remove('open'); }
+    detailClose.addEventListener('click', hideDetail);
+    detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
 
   </script>
 </body>
