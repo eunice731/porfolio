@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Spacebar Spawn</title>
+  <title>Physics Wall - Fixed Contact</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>클릭하여 시작하세요.<br><br><b>[Spacebar]</b>를 누르면 아이콘이 쏟아집니다.</div>
+    <div>클릭하여 시작하세요.<br><b>[Spacebar]</b>를 누르면 이미지가 계속 쏟아집니다.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,14 +67,14 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 조절 ⭐
+    // ⭐ 설정값 조절 (윤곽선이 닿도록 수정됨) ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (이미지끼리 겹치는 정도)
-    const HITBOX_SCALE = 0.6; 
+    // 1. 충돌 박스 크기 (1.0으로 설정해야 이미지 외곽선이 서로 닿습니다)
+    const HITBOX_SCALE = 1.0; 
 
     // 2. 바닥 높이 띄우기 (px)
-    const FLOOR_OFFSET = 100; 
+    const FLOOR_OFFSET = 50; 
     
     // =================================================================
 
@@ -89,7 +89,6 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -120,7 +119,7 @@
 
     const engine = Engine.create();
     const world = engine.world;
-    engine.gravity.y = 1;
+    engine.gravity.y = 1.2; // 중력을 살짝 높여 더 빨리 가라앉게 함
 
     const isMobile = () => window.innerWidth <= 900;
     let walls = [];
@@ -155,11 +154,8 @@
       Composite.add(world, walls);
     }
 
-    // ===== ⭐ 이미지 생성 함수 ⭐ =====
     function spawnBoxes() {
       const w = window.innerWidth;
-      
-      // 모바일: 150px, PC: 200px
       const baseSize = isMobile() ? 150 : 200;
 
       works.forEach((work, i) => {
@@ -178,15 +174,16 @@
         const physHeight = visualHeight * HITBOX_SCALE;
 
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 1500 - 300; // 화면 위쪽에서 랜덤하게 떨어짐
+        const y = -Math.random() * 1000 - 200; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 30 * HITBOX_SCALE },
-          restitution: 0.5,
-          friction: 0.3,
-          frictionAir: 0.005, 
-          density: 0.002, 
+          // chamfer(모서리 곡률)을 줄여야 빈틈없이 붙습니다
+          chamfer: { radius: 5 }, 
+          restitution: 0.1,  // 튀어오름 방지 (낮을수록 서로 잘 붙음)
+          friction: 0.8,     // 마찰력 증가 (서로 덜 미끄러짐)
+          frictionAir: 0.02, // 공기 저항 (너무 빨리 떨어지지 않게)
+          density: 0.01,
           render: { visible: false },
           customData: { 
               work, 
@@ -196,7 +193,7 @@
           }
         });
 
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
         Composite.add(world, body);
       });
     }
@@ -210,7 +207,6 @@
 
       const bodies = Composite.allBodies(world);
       
-      ctx.beginPath();
       for (let i = 0; i < bodies.length; i += 1) {
         const body = bodies[i];
         if (body.isStatic) continue;
@@ -224,10 +220,11 @@
           ctx.translate(x, y);
           ctx.rotate(angle);
           if (image.complete && image.naturalWidth !== 0) {
-             ctx.drawImage(image, -width/2, -height/2, width, height);
+              // 이미지를 그릴 때 물리 엔진 박스 크기와 정확히 일치하게 그림
+              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
-             ctx.fillStyle = '#ccc';
-             ctx.fillRect(-width/2, -height/2, width, height);
+              ctx.fillStyle = '#ccc';
+              ctx.fillRect(-width/2, -height/2, width, height);
           }
           ctx.restore();
         }
@@ -235,7 +232,6 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 수동 제어 로직 =====
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
@@ -251,7 +247,8 @@
     }
 
     function onPointerDown(e) {
-      e.preventDefault();
+      window.focus(); 
+      if (e.cancelable) e.preventDefault();
       const pos = getPointerPos(e);
       lastPointerX = pos.x; lastPointerY = pos.y;
       isPointerDown = true;
@@ -270,7 +267,7 @@
 
     function onPointerMove(e) {
       if (!isPointerDown) return;
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       const pos = getPointerPos(e);
       const dx = pos.x - lastPointerX;
       const dy = pos.y - lastPointerY;
@@ -297,26 +294,24 @@
           const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
           const clicked = Query.point(bodies, pos);
           if (clicked.length > 0) {
-             const body = clicked[0];
-             if(body.customData) showDetail(body.customData.work);
+              const body = clicked[0];
+              if(body.customData) showDetail(body.customData.work);
           }
         }
       }
     }
 
     canvas.addEventListener('mousedown', onPointerDown);
-    canvas.addEventListener('mousemove', onPointerMove);
-    canvas.addEventListener('mouseup', onPointerUp);
-    canvas.addEventListener('mouseleave', () => { isPointerDown = false; dragBody = null; });
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
     canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-    canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-    canvas.addEventListener('touchend', onPointerUp);
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
 
-    // ===== [추가됨] 스페이스바 누르면 추가 생성 =====
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault(); // 스페이스바 스크롤 방지
-        spawnBoxes();       // 아이콘 추가 생성
+        e.preventDefault(); 
+        spawnBoxes();       
       }
     });
 
