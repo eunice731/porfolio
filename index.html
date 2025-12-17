@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio - Smart Image Handling</title>
+  <title>Portfolio - Diagnostic Mode</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -29,11 +29,11 @@
       font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; 
       z-index: 10; 
-      background: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.95);
+      padding: 20px;
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
-    /* 모달 스타일 */
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
@@ -71,7 +71,8 @@
       overflow: hidden;
       background: #f5f5f5;
       display: flex; align-items: center; justify-content: center;
-      /* 이미지가 없으면 JS로 display: none 처리됨 */
+      min-height: 100px;
+      border: 1px solid #eee;
     }
     .detail-img {
       width: 100%; height: auto; display: block;
@@ -91,10 +92,12 @@
   <canvas id="canvas"></canvas>
 
   <div id="intro">
+    <div style="color: red; font-weight: bold; margin-bottom: 10px;">🚨 [진단 모드 실행 중]</div>
     <div>
-      <b>[스마트 이미지 처리]</b><br>
-      사진이 없는 항목은<br>
-      이미지 칸이 자동으로 사라집니다.
+      이미지가 안 뜨는 박스를 클릭해보세요.<br>
+      왜 안 뜨는지 <b>경고창(Alert)</b>으로 알려줍니다.<br>
+      <br>
+      (화면을 클릭하면 시작합니다)
     </div>
   </div>
 
@@ -117,130 +120,31 @@
   <script>
     // =================================================================
     // 🔥 데이터 설정
-    // detailImage가 ''(빈따옴표)이면 이미지 박스가 아예 안 나옵니다.
+    // 여기서 detailImage 경로를 실제 파일명과 똑같이 맞춰주세요.
     // =================================================================
     const works = [
       {
         id: 'work-1',
         imageSrc: './icon/1.png',
-        detailImage: './detail/detail1.jpg', // ✅ 사진 있음 -> 나옴
-        title: '브랜드 아이덴티티',
-        tag: 'Branding',
-        desc: '사진이 있는 프로젝트입니다. 이미지가 상단에 표시됩니다.'
+        detailImage: './detail/detail1.jpg', // 👈 여기를 실제 파일명으로 수정하세요!
+        title: '작품 1',
+        tag: 'Design',
+        desc: '설명 1'
       },
       {
         id: 'work-2',
         imageSrc: './icon/2.png',
-        detailImage: './detail/detail2.jpg', //
-        title: '텍스트 전용 프로젝트',
-        tag: 'Writing',
-        desc: '이 프로젝트는 사진이 없습니다. 그래서 이미지 박스가 사라지고 텍스트만 깔끔하게 보입니다.'
+        detailImage: './detail/detail2.jpg', // 👈 여기도 수정!
+        title: '작품 2',
+        tag: 'Art',
+        desc: '설명 2'
       },
-      {
-        id: 'work-3',
-        imageSrc: './icon/3.png',
-        detailImage: './detail/oops.jpg', // ⚠️ 파일명이 틀렸거나 파일이 없으면? -> 자동으로 숨김!
-        title: '이미지 로드 실패 테스트',
-        tag: 'Test',
-        desc: '연결된 이미지가 실제 폴더에 없다면, 엑스박스 대신 그냥 숨겨버립니다.'
-      },
-      // ... 아래에 계속 추가하세요 ...
-      {
-        id: 'work-4',
-        imageSrc: './icon/4.png',
-        detailImage: './detail/detail4.jpg',
-        title: '전시회 포스터',
-        tag: 'Graphic',
-        desc: '포스터 작업물입니다.'
-      },
-      {
-        id: 'work-5',
-        imageSrc: './icon/5.png',
-        detailImage: './detail/detail5.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-6',
-        imageSrc: './icon/6.png',
-        detailImage: './detail/detail6.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-7',
-        imageSrc: './icon/7.png',
-        detailImage: '', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-8',
-        imageSrc: './icon/5.png',
-        detailImage: './detail/detail6.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-9',
-        imageSrc: './icon/9.png',
-        detailImage: './detail/detail9.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-10',
-        imageSrc: './icon/10.png',
-        detailImage: './detail/detail10.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-11',
-        imageSrc: './icon/11.png',
-        detailImage: './detail/detail11.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-12',
-        imageSrc: './icon/12.png',
-        detailImage: '', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-13',
-        imageSrc: './icon/13.png',
-        detailImage: '', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-14',
-        imageSrc: './icon/14.png',
-        detailImage: './detail/detail5.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      },
-      {
-        id: 'work-15',
-        imageSrc: './icon/15.png',
-        detailImage: './detail/detail5.jpg', 
-        title: '아이디어 스케치',
-        tag: 'Sketch',
-        desc: '사진 없이 설명만 있는 경우입니다.'
-      }
+      // ... 아래에 계속 추가 (샘플 데이터입니다)
+      { id: 'work-3', imageSrc: './icon/3.png', detailImage: './detail/3.png', title: '작품 3', tag: 'Web', desc: '설명' },
+      { id: 'work-4', imageSrc: './icon/4.png', detailImage: './detail/4.jpg', title: '작품 4', tag: 'Web', desc: '설명' },
+      { id: 'work-5', imageSrc: './icon/5.png', detailImage: './detail/5.jpg', title: '작품 5', tag: 'Web', desc: '설명' },
+      { id: 'work-6', imageSrc: './icon/6.png', detailImage: '', title: '작품 6 (이미지 없음)', tag: 'Text', desc: '이건 이미지 없는 글 전용입니다.' },
+      // ... 필요하면 더 복사해서 쓰세요
     ];
     // =================================================================
 
@@ -257,12 +161,11 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 관련 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
-    const detailImgBox = document.getElementById('detailImgBox'); // 박스 통째로 제어
+    const detailImgBox = document.getElementById('detailImgBox'); 
     const detailMainImg = document.getElementById('detailMainImg');
     const detailClose = document.getElementById('detailClose');
 
@@ -274,22 +177,14 @@
       works.forEach(work => {
         const img = new Image();
         img.onload = () => { loadedCount++; checkLoaded(callback); };
-        img.onerror = () => { 
-            // 아이콘 없으면 경고만 하고 진행
-            loadedCount++; checkLoaded(callback); 
-        };
+        img.onerror = () => { loadedCount++; checkLoaded(callback); };
         img.src = work.imageSrc;
         loadedImages[work.id] = img;
       });
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    const engine = Engine.create({ 
-      enableSleeping: true, 
-      positionIterations: 8,
-      velocityIterations: 8
-    });
-    
+    const engine = Engine.create({ enableSleeping: true });
     const world = engine.world;
     engine.gravity.y = 2.5; 
 
@@ -354,11 +249,7 @@
           customData: { work, image: img, width: visualWidth, height: visualHeight }
         });
 
-        Body.setVelocity(body, { 
-            x: (Math.random() - 0.5) * 5, 
-            y: Math.random() * 20 + 20 
-        });
-        
+        Body.setVelocity(body, { x: (Math.random() - 0.5) * 5, y: Math.random() * 20 + 20 });
         Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.3);
         Composite.add(world, body);
       });
@@ -379,11 +270,10 @@
 
         const { x, y } = body.position;
         const { width, height, image } = body.customData || {};
-        const angle = body.angle;
-
+        
         ctx.save();
         ctx.translate(x, y);
-        ctx.rotate(angle);
+        ctx.rotate(body.angle);
 
         if (image && image.complete && image.naturalWidth !== 0) {
             ctx.drawImage(image, -width/2, -height/2, width, height);
@@ -412,7 +302,6 @@
 
     function onPointerDown(e) {
       if (detailOverlay.classList.contains('open')) return;
-
       const pos = getPointerPos(e);
       lastPointerX = pos.x; lastPointerY = pos.y;
       isPointerDown = true;
@@ -421,7 +310,6 @@
 
       const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
       const clicked = Query.point(bodies, pos);
-
       if (clicked.length > 0) {
         dragBody = clicked[0];
         Matter.Sleeping.set(dragBody, false);
@@ -438,7 +326,6 @@
       const dy = pos.y - lastPointerY;
       velocityX = dx; velocityY = dy;
       moveDist += Math.sqrt(dx*dx + dy*dy);
-
       if (dragBody) {
         Matter.Sleeping.set(dragBody, false);
         Body.setPosition(dragBody, { x: dragBody.position.x + dx, y: dragBody.position.y + dy });
@@ -451,7 +338,6 @@
       isPointerDown = false;
       const upTime = performance.now();
       const elapsed = upTime - downTime;
-
       if (dragBody && moveDist < 30 && elapsed < 600) {
           if (dragBody.customData && dragBody.customData.work) {
             showDetail(dragBody.customData.work);
@@ -466,33 +352,36 @@
     }
 
     // =================================================================
-    // 🔥 [수정됨] 스마트 이미지 처리 함수
+    // 🚨 [핵심] 진단용 이미지 표시 함수
     // =================================================================
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.desc;
       
-      // 1. 데이터에 이미지가 지정되어 있는지 확인
-      if (work.detailImage && work.detailImage.trim() !== "") {
-        // 이미지가 있다고 설정되어 있으면 일단 보여줌
-        detailImgBox.style.display = 'flex';
-        detailMainImg.src = work.detailImage;
-      } else {
-        // 설정이 비어있으면 숨김
+      // 1. 이미지가 없다고 설정한 경우
+      if (!work.detailImage || work.detailImage.trim() === "") {
         detailImgBox.style.display = 'none';
         detailMainImg.src = "";
+        detailOverlay.classList.add('open');
+        return;
       }
 
-      // 2. 만약 이미지를 불렀는데 파일이 없으면(에러나면) 숨김
+      // 2. 이미지가 있다고 설정된 경우 - 일단 박스를 보여줌
+      detailImgBox.style.display = 'flex';
+      detailMainImg.src = work.detailImage;
+
+      // 3. 🚨 에러 발생 시 경고창 띄우기
       detailMainImg.onerror = function() {
-        detailImgBox.style.display = 'none';
-        this.src = "";
+        alert("❌ 이미지 로딩 실패!\n\n1. 코드에 적힌 경로: " + work.detailImage + "\n2. 브라우저가 찾은 경로: " + this.src + "\n\n[확인할 것]\n- detail 폴더가 index.html 옆에 있나요?\n- 파일명이 1.PNG 인데 코드엔 1.png 라고 적지 않았나요?");
+        
+        // 엑스박스라도 보이게 유지
+        this.alt = "경로 오류: " + work.detailImage;
       };
 
-      // 3. 로드 성공하면 확실하게 보여줌
+      // 4. 로드 성공하면 콘솔에 메시지
       detailMainImg.onload = function() {
-        detailImgBox.style.display = 'flex';
+        console.log("✅ 이미지 로드 성공: " + work.detailImage);
       };
 
       detailOverlay.classList.add('open');
@@ -500,10 +389,9 @@
     
     function hideDetail() {
       detailOverlay.classList.remove('open');
-      // 닫을 때 초기화
       setTimeout(() => { 
         detailMainImg.src = ""; 
-        detailImgBox.style.display = 'none'; // 닫을 때 일단 숨겨둠
+        detailImgBox.style.display = 'none';
       }, 200);
     }
 
@@ -518,12 +406,7 @@
     canvas.addEventListener('touchstart', onPointerDown, { passive: false });
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
-
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault(); spawnBoxes();       
-      }
-    });
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); spawnBoxes(); } });
 
     let hasStarted = false;
     function start() {
@@ -534,7 +417,6 @@
       spawnBoxes();
       renderLoop();
     }
-
     preloadImages(() => {
       document.body.addEventListener('click', start, { once: true });
       document.body.addEventListener('touchstart', start, { once: true });
