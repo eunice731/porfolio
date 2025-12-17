@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Physics Wall - Real Rotation</title>
+  <title>Chaos Physics Wall</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -49,7 +49,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>화면을 클릭하면 아이콘이 쏟아집니다.</div>
+    <div>화면을 클릭하면 아이콘들이 자유롭게 쏟아집니다.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -62,27 +62,28 @@
   </div>
 
   <script>
-    // Matter.js 모듈 별칭
+    // Matter.js 모듈
     const Engine = Matter.Engine,
-          Render = Matter.Render,
           Runner = Matter.Runner,
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Events = Matter.Events,
           Mouse = Matter.Mouse,
           MouseConstraint = Matter.MouseConstraint,
-          Body = Matter.Body;
+          Body = Matter.Body,
+          Vector = Matter.Vector;
 
-    // HTML 요소
     const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
+    
+    // 모달 관련
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
     const detailClose = document.getElementById('detailClose');
 
-    // 데이터 정의 (1.png ~ 15.png)
     const works = Array.from({ length: 15 }, (_, i) => ({
       id: `work-${i+1}`,
       title: `Project ${i+1}`,
@@ -94,7 +95,6 @@
     // 이미지 프리로드
     const loadedImages = {};
     let loadedCount = 0;
-
     function preloadImages(callback) {
       if (works.length === 0) { callback(); return; }
       works.forEach(work => {
@@ -105,34 +105,33 @@
         loadedImages[work.id] = img;
       });
     }
-    function checkLoaded(callback) {
-      if (loadedCount === works.length) callback();
-    }
+    function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    // ===== 물리 엔진 설정 =====
+    // ===== 물리 엔진 초기화 =====
     const engine = Engine.create();
     const world = engine.world;
     
-    // 모바일 감지
+    // [중요] 수직 정렬 방지를 위해 중력을 살짝 줄임 (기본값 1 -> 0.8)
+    engine.gravity.y = 0.8;
+
     const isMobile = () => window.innerWidth <= 900;
 
-    // 벽 생성 함수
     let walls = [];
     function createWalls() {
       Composite.remove(world, walls);
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const thick = 100;
+      const thick = 200; // 벽을 두껍게 해서 뚫고 나가는 것 방지
       
       walls = [
-        Bodies.rectangle(w/2, h + thick/2, w, thick, { isStatic: true, render: { visible: false } }), // 바닥
-        Bodies.rectangle(-thick/2, h/2, thick, h * 5, { isStatic: true, render: { visible: false } }), // 왼쪽
-        Bodies.rectangle(w + thick/2, h/2, thick, h * 5, { isStatic: true, render: { visible: false } }) // 오른쪽
+        Bodies.rectangle(w/2, h + thick/2, w * 2, thick, { isStatic: true, render: { visible: false } }),
+        Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
+        Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
-    // 아이콘(박스) 생성 함수
+    // ⭐ 자유 낙하 박스 생성 (핵심 로직 수정됨) ⭐
     function spawnBoxes() {
       const w = window.innerWidth;
       const baseSize = isMobile() ? 90 : 110;
@@ -142,73 +141,68 @@
         let width = baseSize;
         let height = baseSize;
         
-        // 이미지 비율 유지
         if (img && img.naturalWidth) {
           const aspect = img.naturalHeight / img.naturalWidth;
           width = baseSize + (Math.random() - 0.5) * 30;
           height = width * aspect;
         }
 
-        // 랜덤 위치 및 회전
-        const x = Math.random() * (w - 200) + 100;
-        const y = -Math.random() * 1000 - 200; // 위쪽으로 높게 분산
-        const angle = Math.random() * Math.PI * 2; // 0 ~ 360도 랜덤 회전
-
+        // 1. 위치 분산: 화면 전체 너비에 걸쳐서 랜덤하게
+        const x = Math.random() * (w - 100) + 50;
+        const y = -Math.random() * 1500 - 200; // 아주 높이서 시간차를 두고 떨어짐
+        
+        // 2. 물리 바디 생성
         const body = Bodies.rectangle(x, y, width, height, {
-          angle: angle,
-          restitution: 0.4, // 탄성 (튕김 정도)
-          friction: 0.5,    // 마찰
-          frictionAir: 0.02, // 공기 저항 (천천히 떨어짐)
-          // 중요: 이미지 정보를 body에 저장
-          render: {
-            sprite: { texture: work.imageSrc } // Matter.js는 이걸 참조하지 않지만 우리가 쓸 데이터
-          },
-          customData: {
-            work: work,
-            image: img,
-            width: width,
-            height: height
-          }
+          angle: Math.random() * Math.PI * 2, // 360도 랜덤 회전 상태로 시작
+          
+          // [핵심] 모서리를 둥글게 깎음 (Chamfer)
+          // 직각이 아니기 때문에 바닥에 닿았을 때 미끄러지거나 구릅니다.
+          chamfer: { radius: 20 }, 
+          
+          restitution: 0.5, // 적당한 탄성
+          friction: 0.3,    // 마찰을 줄여서 잘 미끄러지게 함
+          frictionAir: 0.002, // [핵심] 공기 저항을 극도로 낮춤 (회전이 안 멈춤)
+          
+          render: { sprite: { texture: work.imageSrc } },
+          customData: { work: work, image: img, width: width, height: height }
         });
 
-        // 초기 회전력(토크) 부여 -> 뚝 떨어지지 않고 돌면서 떨어짐
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
-        
+        // 3. 초기 에너지 주입 (던지기 효과)
+        // 시작하자마자 회전력(Torque)과 횡이동 힘(Force)을 줍니다.
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.25); // 뱅글뱅글 돔
+        Body.setVelocity(body, { 
+            x: (Math.random() - 0.5) * 10, // 좌우로 랜덤하게 날아감
+            y: 0 
+        });
+
         Composite.add(world, body);
       });
     }
 
-    // ===== 커스텀 렌더링 루프 =====
-    // Matter.Render를 쓰지 않고 직접 Canvas에 그립니다 (이미지 제어 최적화)
-    const ctx = canvas.getContext('2d');
-
+    // 렌더링 루프
     function renderLoop() {
-      // 1. 물리 계산 업데이트
       Engine.update(engine, 1000 / 60);
 
-      // 2. 화면 지우기
       const w = window.innerWidth;
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
 
-      // 3. 모든 물체 그리기
       const bodies = Composite.allBodies(world);
       
       ctx.beginPath();
       for (let i = 0; i < bodies.length; i += 1) {
         const body = bodies[i];
-        if (body.isStatic) continue; // 벽은 안 그림
+        if (body.isStatic) continue;
 
         const { x, y } = body.position;
-        const { width, height, image, work } = body.customData || {};
+        const { width, height, image } = body.customData || {};
         const angle = body.angle;
 
         if (image) {
           ctx.save();
           ctx.translate(x, y);
-          ctx.rotate(angle); // [핵심] 물체의 회전값 적용
+          ctx.rotate(angle);
           
-          // 이미지 그리기
           if (image.complete && image.naturalWidth !== 0) {
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
@@ -218,47 +212,38 @@
           ctx.restore();
         }
       }
-      
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 마우스/터치 인터랙션 (Matter.js 내장 기능) =====
+    // 마우스 제어 (부드럽게 잡기)
     const mouse = Mouse.create(canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
-      constraint: {
-        stiffness: 0.2,
-        render: { visible: false }
-      }
+      constraint: { stiffness: 0.1, render: { visible: false } }
     });
     Composite.add(world, mouseConstraint);
-
-    // 스크롤 방지
     mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
     mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
 
-    // 클릭 시 상세 모달 띄우기 (드래그가 아닐 때만)
+    // 클릭 이벤트
     let isDragging = false;
     Events.on(mouseConstraint, 'startdrag', () => { isDragging = true; });
-    Events.on(mouseConstraint, 'enddrag', () => { 
-      // 드래그가 끝난 직후 클릭으로 오인되지 않게 잠시 딜레이
-      setTimeout(() => isDragging = false, 50); 
-    });
+    Events.on(mouseConstraint, 'enddrag', () => { setTimeout(() => isDragging = false, 50); });
     
     Events.on(mouseConstraint, 'mouseup', (event) => {
       if (!isDragging) {
         const mousePos = event.mouse.position;
-        // 클릭한 위치에 있는 바디 찾기
         const bodies = Composite.allBodies(world);
-        const clickedBody = Matter.Query.point(bodies, mousePos)[0];
-
-        if (clickedBody && clickedBody.customData) {
-          showDetail(clickedBody.customData.work);
+        // 클릭 판정 범위를 조금 여유있게
+        const clickedBodies = Matter.Query.point(bodies, mousePos);
+        if (clickedBodies.length > 0) {
+             const body = clickedBodies[0];
+             if(body.customData) showDetail(body.customData.work);
         }
       }
     });
 
-    // ===== 초기화 및 이벤트 리스너 =====
+    // 화면 리사이즈 및 실행
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
@@ -266,13 +251,10 @@
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
       ctx.scale(dpr, dpr);
-      
-      // 벽 위치 재조정
       createWalls();
     }
     window.addEventListener('resize', resizeCanvas);
     
-    // 시작 로직
     let hasStarted = false;
     function start() {
       if (hasStarted) return;
@@ -283,14 +265,11 @@
       renderLoop();
     }
 
-    // 이미지 로드 후 대기
     preloadImages(() => {
-      // 화면 클릭 시 시작
       document.body.addEventListener('click', start, { once: true });
       document.body.addEventListener('touchstart', start, { once: true });
     });
 
-    // 모달 제어
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
