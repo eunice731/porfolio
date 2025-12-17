@@ -90,7 +90,7 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 관련 요소
+    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -98,7 +98,7 @@
     const detailMeta = document.getElementById('detailMeta');
     const detailClose = document.getElementById('detailClose');
 
-    // 고해상도(Retina) 디스플레이 대응
+    // 리사이징 (고해상도 대응)
     function resize() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
@@ -113,7 +113,7 @@
     const isMobile = () => window.innerWidth <= 900;
 
     // ==========================================
-    // ===== 작업 데이터 리스트 (1.png ~ 15.png) =====
+    // ===== 작업 데이터 (1.png ~ 15.png) =====
     // ==========================================
     const works = [
       { id: 'work-1', title: '작업물 1', tag: 'Graphic', description: '설명', meta: 'Tool', imageSrc: './icon/1.png' },
@@ -139,10 +139,7 @@
     let allImagesLoaded = false;
 
     function preloadImages(callback) {
-      if (works.length === 0) {
-        callback(); 
-        return;
-      }
+      if (works.length === 0) { callback(); return; }
       works.forEach(work => {
         const img = new Image();
         img.onload = () => {
@@ -165,7 +162,7 @@
       });
     }
 
-    // ===== 물리 엔진 및 렌더링 =====
+    // ===== 물리 엔진 =====
     const shapes = [];
     let hasSpawned = false;
     const gravity = 800;
@@ -175,7 +172,6 @@
 
     function spawnShapes() {
       if (!allImagesLoaded) return;
-      
       const w = window.innerWidth;
       const h = window.innerHeight;
       shapes.length = 0;
@@ -183,7 +179,6 @@
       const mobile = isMobile();
       const count = works.length; 
       
-      // 아이콘 크기 (지난번과 동일하게 유지)
       const baseRadius = mobile ? 60 : 60; 
       const radiusRange = mobile ? 40 : 40; 
 
@@ -266,12 +261,11 @@
       }
     }
 
+    // ===== 그리기 함수 (글씨 그리는 코드 100% 제거됨) =====
     function draw() {
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
       for (const s of shapes) {
-        // [수정됨] 이미지 비율 유지 로직 (Aspect Fit)
-        // 이미지가 찌그러지지 않게 원본 비율대로 원 안에 그립니다.
         if (s.image && s.image.complete && s.image.naturalWidth !== 0) {
           ctx.save();
           
@@ -280,39 +274,37 @@
           ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
           ctx.clip();
 
-          // 2. 비율 계산 및 센터링
+          // 2. 이미지 그리기 (비율 유지 - Fit)
           const img = s.image;
           const imgW = img.naturalWidth;
           const imgH = img.naturalHeight;
           const aspect = imgW / imgH;
           const diameter = s.radius * 2;
-
+          
           let drawW, drawH;
-          // 비율에 맞춰 그릴 크기 결정 (Fit)
-          if (aspect > 1) { // 가로가 더 긴 경우
-              drawW = diameter;
-              drawH = diameter / aspect;
-          } else { // 세로가 더 길거나 정사각형인 경우
-              drawH = diameter;
-              drawW = diameter * aspect;
+          if (aspect > 1) { // 가로가 긴 이미지
+            drawW = diameter;
+            drawH = diameter / aspect;
+          } else { // 세로가 긴 이미지
+            drawH = diameter;
+            drawW = diameter * aspect;
           }
-          // 중앙 정렬 좌표 계산
+          
+          // 중앙 정렬
           const drawX = s.x - drawW / 2;
           const drawY = s.y - drawH / 2;
 
-          // 3. 그리기
           ctx.drawImage(img, drawX, drawY, drawW, drawH);
           ctx.restore();
-
         } else {
-          // 이미지 없을 때 회색 원
+          // 이미지 로딩 전 회색 원
           ctx.beginPath();
           ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
-          ctx.fillStyle = '#ccc';
+          ctx.fillStyle = '#eee';
           ctx.fill();
         }
-
-        // [수정됨] 타이틀 그리는 코드를 모두 삭제했습니다.
+        
+        // 여기에 원래 있던 ctx.fillText (글씨 그리기) 코드는 완전히 삭제되었습니다.
       }
     }
 
@@ -328,9 +320,9 @@
       requestAnimationFrame(loop);
     }
 
-    // ===== 초기화 및 이벤트 =====
+    // ===== 초기화 =====
     function onImagesReady() {
-      intro.innerHTML = '화면을 탭하면 아이콘들이 떨어집니다.<br>드래그하거나 클릭해보세요.';
+      intro.innerHTML = '화면을 탭하면 아이콘들이 떨어집니다.';
       
       const start = () => {
         if (!hasSpawned) {
@@ -359,7 +351,7 @@
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
 
-    // ===== 포인터 로직 (드래그 & 클릭) =====
+    // ===== 포인터 (드래그/클릭) =====
     let isPointerDown = false;
     let dragTarget = null;
     let dragOffsetX=0, dragOffsetY=0;
