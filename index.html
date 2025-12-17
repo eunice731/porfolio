@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Stable & Stacked</title>
+  <title>Physics Wall - Final</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -21,6 +21,7 @@
     }
     canvas:active { cursor: grabbing; }
     
+    /* 인트로 화면 */
     #intro {
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
@@ -32,82 +33,105 @@
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
+    /* 상세 정보 모달 (팝업창) */
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.25);
+      background: rgba(0,0,0,0.4); /* 배경 조금 더 어둡게 */
       opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
-      z-index: 10;
+      z-index: 100; /* 캔버스보다 위에 오도록 */
     }
     .detail-overlay.open { opacity: 1; pointer-events: auto; }
+    
     .detail-modal {
-      width: min(480px, 80vw); max-height: 80vh;
-      background: #fff; border-radius: 16px;
-      box-shadow: 0 18px 45px rgba(0,0,0,0.22);
-      padding: 20px; display: flex; flex-direction: column; gap: 10px;
+      width: min(480px, 80vw); 
+      max-height: 80vh;
+      background: #fff; 
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.25);
+      padding: 25px; 
+      display: flex; flex-direction: column; gap: 12px;
+      transform: translateY(20px); transition: transform 0.25s ease;
     }
-    .detail-title { font-weight: bold; font-size: 1.2rem; }
-    .detail-close { align-self: flex-end; cursor: pointer; border: none; background: none; font-size: 1.5rem; }
+    .detail-overlay.open .detail-modal { transform: translateY(0); }
+    
+    .detail-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .detail-title { font-weight: 800; font-size: 1.5rem; color: #111; }
+    .detail-close { 
+      cursor: pointer; border: none; background: transparent; 
+      font-size: 1.8rem; line-height: 1; color: #999; padding: 0;
+    }
+    .detail-close:hover { color: #000; }
+    
+    .detail-tag { 
+      display: inline-block; background: #f0f0f0; color: #555; 
+      padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+      align-self: flex-start;
+    }
+    .detail-body { font-size: 1rem; line-height: 1.6; color: #333; margin-top: 10px; }
   </style>
 </head>
 <body>
+
   <canvas id="canvas"></canvas>
+
   <div id="intro">
-    <div><b>안정화 모드</b><br>[Spacebar]를 눌러보세요. 떨림 없이 쌓입니다.</div>
+    <div>
+      <b>[완성 버전]</b><br>
+      아이콘을 클릭하면 설명창이 뜹니다.<br>
+      Spacebar를 누르면 아이콘이 쏟아집니다.
+    </div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
     <div class="detail-modal">
-      <button class="detail-close" id="detailClose">×</button>
-      <div class="detail-title" id="detailTitle"></div>
-      <div id="detailTag" style="color:#777; font-size:0.9rem;"></div>
-      <div id="detailBody" style="line-height:1.5;"></div>
+      <div class="detail-header">
+        <div class="detail-title" id="detailTitle">제목</div>
+        <button class="detail-close" id="detailClose">×</button>
+      </div>
+      <div class="detail-tag" id="detailTag">Tag</div>
+      <div class="detail-body" id="detailBody">내용이 들어갑니다.</div>
     </div>
   </div>
 
   <script>
     // =================================================================
-    // ⭐ 떨림 방지 및 겹침 설정 ⭐
+    // 설정값 (안정성 + 겹침 최적화)
     // =================================================================
-    
-    // 1. 충돌 박스 크기 (0.75 추천)
-    // 너무 작으면(0.4) 물리 엔진이 불안정해서 떨립니다.
-    // 0.75 정도면 시각적으로는 겹쳐 보이면서 물리적으로는 안정적입니다.
-    const HITBOX_SCALE = 0.75; 
-
-    // 2. 바닥 높이
-    const FLOOR_OFFSET = 100; 
-    
+    const HITBOX_SCALE = 0.75;  // 75%만 물리 적용 (겹쳐 보임)
+    const FLOOR_OFFSET = 100;   // 바닥 높이
     // =================================================================
 
     const Engine = Matter.Engine,
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Body = Matter.Body,
-          Vector = Matter.Vector,
           Query = Matter.Query;
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 관련
+    // 모달 요소 가져오기
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
     const detailClose = document.getElementById('detailClose');
 
+    // 15개의 더미 데이터
     const works = Array.from({ length: 15 }, (_, i) => ({
       id: `work-${i+1}`,
-      title: `Project ${i+1}`,
-      tag: 'Design',
-      description: '설명 텍스트입니다.',
+      title: `Project Title ${i+1}`,
+      tag: i % 2 === 0 ? 'UI/UX Design' : 'Branding', // 예시 태그
+      description: `이 프로젝트는 ${i+1}번째 작업물입니다. 클릭해주셔서 감사합니다. 이곳에 상세한 포트폴리오 설명이 들어갑니다.`,
       imageSrc: `./icon/${i+1}.png`
     }));
 
     const loadedImages = {};
     let loadedCount = 0;
+
+    // 이미지 미리 로드
     function preloadImages(callback) {
       if (works.length === 0) { callback(); return; }
       works.forEach(work => {
@@ -120,31 +144,28 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    // [핵심 1] enableSleeping: true
-    // 물체가 멈추면 물리 연산을 중단시킵니다. -> 떨림이 사라집니다.
-    const engine = Engine.create({
-      enableSleeping: true 
-    });
+    // 물리 엔진 설정 (enableSleeping: true -> 떨림 방지 핵심)
+    const engine = Engine.create({ enableSleeping: true });
     const world = engine.world;
     engine.gravity.y = 1;
 
     const isMobile = () => window.innerWidth <= 900;
     let walls = [];
 
+    // 화면 크기 대응
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
-      
       ctx.resetTransform();
       ctx.scale(dpr, dpr);
-      
       createWalls();
     }
     window.addEventListener('resize', resizeCanvas);
 
+    // 벽 생성
     function createWalls() {
       Composite.remove(world, walls);
       const w = window.innerWidth;
@@ -152,21 +173,20 @@
       const thick = 200;
       
       walls = [
-        Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
-        Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
-        Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
+        Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }), // 바닥
+        Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }), // 왼쪽 벽
+        Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }) // 오른쪽 벽
       ];
       Composite.add(world, walls);
     }
 
-    // ===== 아이콘 생성 =====
+    // 박스 생성
     function spawnBoxes() {
       const w = window.innerWidth;
       const baseSize = isMobile() ? 150 : 200;
 
       works.forEach((work, i) => {
         const img = loadedImages[work.id];
-        
         let visualWidth = baseSize;
         let visualHeight = baseSize;
         
@@ -178,49 +198,35 @@
 
         const physWidth = visualWidth * HITBOX_SCALE;
         const physHeight = visualHeight * HITBOX_SCALE;
-
         const x = Math.random() * (w - 100) + 50;
         const y = -Math.random() * 800 - 200; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          
-          // [핵심 2] 아주 약간의 둥근 모서리 (Chamfer)
-          // 0으로 하면 모서리끼리 걸려서 떨립니다. 아주 살짝(10)만 줍니다.
-          chamfer: { radius: 10 }, 
-          
-          // [핵심 3] 높은 공기 저항 (frictionAir)
-          // 0.05 ~ 0.1 정도로 높이면 꿀 속에 있는 것처럼 묵직하게 움직이다 금방 멈춥니다.
-          frictionAir: 0.08, 
-          
-          restitution: 0.1, // 튀어오름 거의 없음
-          friction: 0.5,    
+          chamfer: { radius: 10 },    // 모서리 아주 살짝 둥글게 (안정성)
+          frictionAir: 0.08,          // 공기 저항 높임 (묵직하게)
+          restitution: 0.1,           // 덜 튕김
+          friction: 0.5,
           density: 0.002,
-          
           render: { visible: false },
-          customData: { 
-              work, 
-              image: img, 
-              width: visualWidth, 
-              height: visualHeight 
-          }
+          customData: { work, image: img, width: visualWidth, height: visualHeight }
         });
 
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1); // 회전 속도도 줄임
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
         Composite.add(world, body);
       });
     }
 
+    // 렌더링 루프
     function renderLoop() {
       Engine.update(engine, 1000 / 60);
-
       const w = window.innerWidth;
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
 
       const bodies = Composite.allBodies(world);
-      
       ctx.beginPath();
+      
       for (let i = 0; i < bodies.length; i += 1) {
         const body = bodies[i];
         if (body.isStatic) continue;
@@ -234,11 +240,9 @@
           ctx.translate(x, y);
           ctx.rotate(angle);
           if (image.complete && image.naturalWidth !== 0) {
-             // 시각적 이미지는 물리 박스보다 크므로(HITBOX_SCALE < 1), 
-             // 자연스럽게 겹쳐 보입니다.
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
-             ctx.fillStyle = '#ccc';
+             ctx.fillStyle = '#eee';
              ctx.fillRect(-width/2, -height/2, width, height);
           }
           ctx.restore();
@@ -247,7 +251,7 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 수동 제어 =====
+    // ===== ⭐ 클릭 & 인터랙션 로직 ⭐ =====
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
@@ -256,28 +260,29 @@
 
     function getPointerPos(e) {
       const rect = canvas.getBoundingClientRect();
-      if(e.touches && e.touches.length > 0) {
-        return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-      }
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
     function onPointerDown(e) {
-      window.focus(); 
-      e.preventDefault();
+      window.focus();
+      // 모달이 열려있으면 캔버스 클릭 무시
+      if (detailOverlay.classList.contains('open')) return;
+
       const pos = getPointerPos(e);
       lastPointerX = pos.x; lastPointerY = pos.y;
       isPointerDown = true;
-      downTime = performance.now(); moveDistance = 0;
+      downTime = performance.now(); 
+      moveDistance = 0;
 
-      const bodies = Composite.allBodies(world);
-      const dynamicBodies = bodies.filter(b => !b.isStatic);
-      const clicked = Query.point(dynamicBodies, pos);
+      const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
+      const clicked = Query.point(bodies, pos);
 
       if (clicked.length > 0) {
         dragBody = clicked[0];
-        // 드래그 시작 시 잠자기 모드 해제 (깨우기)
-        Matter.Sleeping.set(dragBody, false); 
+        // 드래그 시작 시 잠자기 모드 깨우기
+        Matter.Sleeping.set(dragBody, false);
         Body.setVelocity(dragBody, { x: 0, y: 0 });
         Body.setAngularVelocity(dragBody, 0);
       }
@@ -285,15 +290,16 @@
 
     function onPointerMove(e) {
       if (!isPointerDown) return;
-      e.preventDefault();
+      e.preventDefault(); // 터치 스크롤 방지
       const pos = getPointerPos(e);
       const dx = pos.x - lastPointerX;
       const dy = pos.y - lastPointerY;
+      
       velocityX = dx; velocityY = dy;
       moveDistance += Math.sqrt(dx*dx + dy*dy);
 
       if (dragBody) {
-        Matter.Sleeping.set(dragBody, false); // 계속 깨우기
+        Matter.Sleeping.set(dragBody, false);
         Body.setPosition(dragBody, { x: dragBody.position.x + dx, y: dragBody.position.y + dy });
         Body.setVelocity(dragBody, { x: 0, y: 0 });
       }
@@ -302,32 +308,39 @@
 
     function onPointerUp(e) {
       isPointerDown = false;
+      
       if (dragBody) {
+        // 던지기 효과
         Body.setVelocity(dragBody, { x: velocityX * 1.5, y: velocityY * 1.5 });
         Body.setAngularVelocity(dragBody, Math.random() * 0.2 - 0.1);
         dragBody = null;
-      } else {
-        const elapsed = performance.now() - downTime;
-        if (moveDistance < 10 && elapsed < 300) {
-          const pos = { x: lastPointerX, y: lastPointerY };
-          const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
-          const clicked = Query.point(bodies, pos);
-          if (clicked.length > 0) {
-             const body = clicked[0];
-             if(body.customData) showDetail(body.customData.work);
-          }
+      } 
+      
+      // ⭐ 클릭 감지 로직 (이동거리가 짧고 시간이 짧으면 클릭으로 인정) ⭐
+      const elapsed = performance.now() - downTime;
+      if (moveDistance < 10 && elapsed < 400) {
+        const pos = { x: lastPointerX, y: lastPointerY };
+        const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
+        const clicked = Query.point(bodies, pos);
+        
+        if (clicked.length > 0) {
+           const body = clicked[0];
+           if(body.customData) {
+             showDetail(body.customData.work);
+           }
         }
       }
     }
 
+    // 이벤트 리스너 등록
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('mousemove', onPointerMove);
     canvas.addEventListener('mouseup', onPointerUp);
-    canvas.addEventListener('mouseleave', () => { isPointerDown = false; dragBody = null; });
     canvas.addEventListener('touchstart', onPointerDown, { passive: false });
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
 
+    // 스페이스바 기능
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault(); 
@@ -335,6 +348,7 @@
       }
     });
 
+    // 시작
     let hasStarted = false;
     function start() {
       if (hasStarted) return;
@@ -350,15 +364,22 @@
       document.body.addEventListener('touchstart', start, { once: true });
     });
 
+    // 모달 관련 함수
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.description;
       detailOverlay.classList.add('open');
     }
-    function hideDetail() { detailOverlay.classList.remove('open'); }
+    function hideDetail() { 
+      detailOverlay.classList.remove('open'); 
+    }
+    
+    // 닫기 버튼 및 배경 클릭 시 닫기
     detailClose.addEventListener('click', hideDetail);
-    detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) hideDetail(); });
+    detailOverlay.addEventListener('click', (e) => {
+      if (e.target === detailOverlay) hideDetail();
+    });
 
   </script>
 </body>
