@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Spacebar Spawn</title>
+  <title>Physics Wall - Big & Bold + Spacebar</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>클릭하여 시작하세요.<br><br><b>[Spacebar]</b>를 누르면 아이콘이 쏟아집니다.</div>
+    <div>클릭하여 시작하세요.<br><b>[Spacebar]</b>를 누르면 이미지가 계속 쏟아집니다.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -155,7 +155,7 @@
       Composite.add(world, walls);
     }
 
-    // ===== ⭐ 이미지 생성 함수 ⭐ =====
+    // ===== ⭐ 이미지 사이즈 대폭 확대 ⭐ =====
     function spawnBoxes() {
       const w = window.innerWidth;
       
@@ -178,11 +178,12 @@
         const physHeight = visualHeight * HITBOX_SCALE;
 
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 1500 - 300; // 화면 위쪽에서 랜덤하게 떨어짐
+        // [중요] 스페이스바 누를 때 화면 위 보이지 않는 곳에서 떨어지도록 Y값 설정
+        const y = -Math.random() * 1000 - 200; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 30 * HITBOX_SCALE },
+          chamfer: { radius: 30 * HITBOX_SCALE }, 
           restitution: 0.5,
           friction: 0.3,
           frictionAir: 0.005, 
@@ -251,6 +252,8 @@
     }
 
     function onPointerDown(e) {
+      // 캔버스 클릭 시 포커스를 줘서 키보드 입력이 잘 먹히도록 함
+      window.focus(); 
       e.preventDefault();
       const pos = getPointerPos(e);
       lastPointerX = pos.x; lastPointerY = pos.y;
@@ -312,11 +315,14 @@
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
 
-    // ===== [추가됨] 스페이스바 누르면 추가 생성 =====
+    // =======================================================
+    // ⭐ [추가됨] 스페이스바 기능 ⭐
+    // =======================================================
     window.addEventListener('keydown', (e) => {
+      // Space 또는 Spacebar 키 확인
       if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault(); // 스페이스바 스크롤 방지
-        spawnBoxes();       // 아이콘 추가 생성
+        e.preventDefault(); // 스크롤 방지
+        spawnBoxes();       // 이미지 추가 생성 (쌓이기)
       }
     });
 
