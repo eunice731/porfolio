@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Chaos Physics Wall</title>
+  <title>Physics Wall - Throw & Smash</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -16,7 +16,12 @@
     canvas {
       position: fixed; inset: 0; display: block;
       width: 100%; height: 100%; touch-action: none;
+      cursor: grab; /* 마우스 커서 손모양 */
     }
+    canvas:active {
+      cursor: grabbing; /* 잡았을 때 꽉 쥔 손모양 */
+    }
+    
     #intro {
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
@@ -49,7 +54,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>화면을 클릭하면 아이콘들이 자유롭게 쏟아집니다.</div>
+    <div>화면을 클릭하면 아이콘들이 쏟아집니다.<br>잡아서 던져보세요!</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -62,7 +67,6 @@
   </div>
 
   <script>
-    // Matter.js 모듈
     const Engine = Matter.Engine,
           Runner = Matter.Runner,
           Bodies = Matter.Bodies,
@@ -77,7 +81,7 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 관련
+    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -88,11 +92,10 @@
       id: `work-${i+1}`,
       title: `Project ${i+1}`,
       tag: 'Design',
-      description: '프로젝트 설명입니다.',
+      description: '설명 텍스트입니다.',
       imageSrc: `./icon/${i+1}.png`
     }));
 
-    // 이미지 프리로드
     const loadedImages = {};
     let loadedCount = 0;
     function preloadImages(callback) {
@@ -107,11 +110,11 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    // ===== 물리 엔진 초기화 =====
+    // 물리 엔진 초기화
     const engine = Engine.create();
     const world = engine.world;
     
-    // [중요] 수직 정렬 방지를 위해 중력을 살짝 줄임 (기본값 1 -> 0.8)
+    // 중력 설정 (0.8 정도로 적당하게)
     engine.gravity.y = 0.8;
 
     const isMobile = () => window.innerWidth <= 900;
@@ -121,17 +124,16 @@
       Composite.remove(world, walls);
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const thick = 200; // 벽을 두껍게 해서 뚫고 나가는 것 방지
+      const thick = 200;
       
       walls = [
-        Bodies.rectangle(w/2, h + thick/2, w * 2, thick, { isStatic: true, render: { visible: false } }),
+        Bodies.rectangle(w/2, h + thick/2, w * 3, thick, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
-    // ⭐ 자유 낙하 박스 생성 (핵심 로직 수정됨) ⭐
     function spawnBoxes() {
       const w = window.innerWidth;
       const baseSize = isMobile() ? 90 : 110;
@@ -147,33 +149,22 @@
           height = width * aspect;
         }
 
-        // 1. 위치 분산: 화면 전체 너비에 걸쳐서 랜덤하게
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 1500 - 200; // 아주 높이서 시간차를 두고 떨어짐
+        const y = -Math.random() * 1500 - 200; 
         
-        // 2. 물리 바디 생성
         const body = Bodies.rectangle(x, y, width, height, {
-          angle: Math.random() * Math.PI * 2, // 360도 랜덤 회전 상태로 시작
-          
-          // [핵심] 모서리를 둥글게 깎음 (Chamfer)
-          // 직각이 아니기 때문에 바닥에 닿았을 때 미끄러지거나 구릅니다.
-          chamfer: { radius: 20 }, 
-          
-          restitution: 0.5, // 적당한 탄성
-          friction: 0.3,    // 마찰을 줄여서 잘 미끄러지게 함
-          frictionAir: 0.002, // [핵심] 공기 저항을 극도로 낮춤 (회전이 안 멈춤)
-          
+          angle: Math.random() * Math.PI * 2,
+          chamfer: { radius: 20 }, // 둥근 모서리 (잘 구름)
+          restitution: 0.5, // 탄성
+          friction: 0.3, 
+          frictionAir: 0.005, // 공기 저항을 아주 약간만 줌
+          density: 0.002, // [핵심] 무게감을 약간 주어 던질 때 묵직하게
           render: { sprite: { texture: work.imageSrc } },
           customData: { work: work, image: img, width: width, height: height }
         });
 
-        // 3. 초기 에너지 주입 (던지기 효과)
-        // 시작하자마자 회전력(Torque)과 횡이동 힘(Force)을 줍니다.
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.25); // 뱅글뱅글 돔
-        Body.setVelocity(body, { 
-            x: (Math.random() - 0.5) * 10, // 좌우로 랜덤하게 날아감
-            y: 0 
-        });
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.25);
+        Body.setVelocity(body, { x: (Math.random() - 0.5) * 10, y: 0 });
 
         Composite.add(world, body);
       });
@@ -202,7 +193,6 @@
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(angle);
-          
           if (image.complete && image.naturalWidth !== 0) {
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
@@ -215,26 +205,41 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // 마우스 제어 (부드럽게 잡기)
+    // ===== ⭐ 마우스/터치 컨트롤 강화 (핵심 수정) ⭐ =====
     const mouse = Mouse.create(canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
-      constraint: { stiffness: 0.1, render: { visible: false } }
+      constraint: {
+        // [중요] stiffness: 0.2 (꽉 잡음)
+        // 0.01 = 고무줄, 1.0 = 쇠막대기. 0.2 정도가 탄탄하면서 부드러움
+        stiffness: 0.2, 
+        render: { visible: false }
+      }
     });
     Composite.add(world, mouseConstraint);
     mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
     mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
 
-    // 클릭 이벤트
     let isDragging = false;
-    Events.on(mouseConstraint, 'startdrag', () => { isDragging = true; });
-    Events.on(mouseConstraint, 'enddrag', () => { setTimeout(() => isDragging = false, 50); });
+    
+    // 드래그 시작될 때
+    Events.on(mouseConstraint, 'startdrag', (event) => {
+      isDragging = true;
+      // 잡고 있는 물체는 회전 속도를 줄여서 잡기 편하게 함 (선택사항)
+      // Body.setAngularVelocity(event.body, 0); 
+    });
+
+    // 드래그 끝날 때
+    Events.on(mouseConstraint, 'enddrag', (event) => {
+      // 놓는 순간 딜레이를 줘서 바로 클릭 이벤트가 뜨지 않게 함
+      setTimeout(() => isDragging = false, 50); 
+    });
     
     Events.on(mouseConstraint, 'mouseup', (event) => {
       if (!isDragging) {
         const mousePos = event.mouse.position;
         const bodies = Composite.allBodies(world);
-        // 클릭 판정 범위를 조금 여유있게
+        // 클릭 판정
         const clickedBodies = Matter.Query.point(bodies, mousePos);
         if (clickedBodies.length > 0) {
              const body = clickedBodies[0];
@@ -243,7 +248,7 @@
       }
     });
 
-    // 화면 리사이즈 및 실행
+    // 화면 리사이즈
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
