@@ -14,6 +14,8 @@
     canvas {
       position: fixed; inset: 0; display: block;
       background: #ffffff; touch-action: none;
+      /* 캔버스 크기는 스타일로 한번 더 잡아줘야 함 */
+      width: 100%; height: 100%; 
     }
     #intro {
       position: fixed; inset: 0;
@@ -97,9 +99,19 @@
     const detailMeta = document.getElementById('detailMeta');
     const detailClose = document.getElementById('detailClose');
 
+    // [핵심 수정 1] 고해상도(Retina) 디스플레이 대응 리사이징 함수
     function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      // 캔버스의 '실제 픽셀 크기'를 키움
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      
+      // 화면에 보이는 '스타일 크기'는 그대로 둠
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      
+      // 그리기 좌표계를 확대 (이제 1을 그리면 dpr만큼 그려짐)
+      ctx.scale(dpr, dpr);
     }
     window.addEventListener('resize', resize);
     resize();
@@ -107,7 +119,7 @@
     const isMobile = () => window.innerWidth <= 900;
 
     // ==========================================
-    // ===== [수정됨] 17개 작업 데이터 리스트 =====
+    // ===== 작업 데이터 리스트 =====
     // ==========================================
     const works = [
       {
@@ -269,7 +281,6 @@
         };
         img.onerror = () => {
           console.error(`이미지 로드 실패: ${work.imageSrc}`);
-          // 에러가 나도 진행되도록 카운트 올림 (그래야 멈추지 않음)
           imagesLoadedCount++;
           if (imagesLoadedCount === works.length) {
             allImagesLoaded = true;
@@ -291,8 +302,10 @@
 
     function spawnShapes() {
       if (!allImagesLoaded) return;
-      const w = canvas.width;
-      const h = canvas.height;
+      
+      // [핵심 수정 2] 논리적 너비/높이를 사용 (canvas.width는 이제 너무 커짐)
+      const w = window.innerWidth;
+      const h = window.innerHeight;
       shapes.length = 0;
 
       const mobile = isMobile();
@@ -305,7 +318,7 @@
         const work = works[i % works.length];
         const r = baseRadius + Math.random() * radiusRange;
         const x = r + Math.random() * (w - 2 * r);
-        const y = -200 - Math.random() * 300; // 화면 위쪽에서 생성
+        const y = -200 - Math.random() * 300; 
         const vx = (Math.random() - 0.5) * (mobile ? 40 : 60);
         
         shapes.push({
@@ -320,8 +333,9 @@
     }
 
     function update(dt) {
-      const w = canvas.width;
-      const h = canvas.height;
+      // [핵심 수정 3] 물리 계산은 논리적 좌표(window.innerWidth) 기준
+      const w = window.innerWidth;
+      const h = window.innerHeight;
 
       for (const s of shapes) {
         if (!s.isDragging) {
@@ -330,13 +344,10 @@
           s.y += s.vy * dt;
         }
 
-        // 벽 충돌
+        // 벽 충돌 (천장 막힘 제거됨)
         if (s.x - s.radius < 0) { s.x = s.radius; if(s.vx < 0) s.vx = -s.vx * damping; }
         if (s.x + s.radius > w) { s.x = w - s.radius; if(s.vx > 0) s.vx = -s.vx * damping; }
         if (s.y + s.radius > h) { s.y = h - s.radius; if(s.vy > 0) s.vy = -s.vy * damping; }
-        
-        // [수정됨] 천장(화면 위쪽) 충돌 제거! 이제 위가 뚫려 있어서 잘 떨어집니다.
-        // if (s.y - s.radius < 0) { ... }  <-- 이 부분을 삭제했습니다.
       }
 
       // 상호 충돌
@@ -386,7 +397,8 @@
     }
 
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // 캔버스 클리어 할 때도 논리적 크기 사용
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       const mobile = isMobile();
 
       for (const s of shapes) {
@@ -399,14 +411,12 @@
             s.radius * 2
           );
         } else {
-          // 이미지가 없거나 로딩 실패 시 회색 원 표시
           ctx.beginPath();
           ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
           ctx.fillStyle = '#ccc';
           ctx.fill();
         }
 
-        // 텍스트 그리기
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 4;
