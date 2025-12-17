@@ -74,7 +74,7 @@
     const HITBOX_SCALE = 0.6; 
 
     // 2. 바닥 높이 띄우기 (px)
-    const FLOOR_OFFSET = 100; 
+    const FLOOR_OFFSET = 50; 
     
     // =================================================================
 
@@ -161,7 +161,7 @@
       
       // [수정] 기본 사이즈를 크게 키움
       // 모바일: 150px, PC: 200px
-      const baseSize = isMobile() ? 150 : 200;
+      const baseSize = isMobile() ? 150 : 300;
 
       works.forEach((work, i) => {
         const img = loadedImages[work.id];
