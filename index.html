@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Simple Drop</title>
+  <title>My Portfolio Wall</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -10,13 +10,14 @@
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
       overflow: hidden;
-      font-family: sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       background: #ffffff;
       touch-action: none; 
     }
     canvas {
       position: fixed; inset: 0; display: block;
-      width: 100%; height: 100%; cursor: grab;
+      width: 100%; height: 100%; 
+      cursor: grab;
     }
     canvas:active { cursor: grabbing; }
     
@@ -25,11 +26,46 @@
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       pointer-events: none;
-      font-size: 1.2rem; color: #555; 
+      font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; z-index: 5;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.85);
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
+    
+    .detail-overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.4);
+      opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+      z-index: 100;
+    }
+    .detail-overlay.open { opacity: 1; pointer-events: auto; }
+    
+    .detail-modal {
+      width: min(480px, 80vw); 
+      max-height: 80vh;
+      background: #fff; 
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.25);
+      padding: 25px; 
+      display: flex; flex-direction: column; gap: 12px;
+      transform: translateY(20px); transition: transform 0.25s ease;
+    }
+    .detail-overlay.open .detail-modal { transform: translateY(0); }
+    
+    .detail-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .detail-title { font-weight: 800; font-size: 1.5rem; color: #111; }
+    .detail-close { 
+      cursor: pointer; border: none; background: transparent; 
+      font-size: 1.8rem; line-height: 1; color: #999; padding: 0;
+    }
+    .detail-close:hover { color: #000; }
+    .detail-tag { 
+      display: inline-block; background: #f0f0f0; color: #555; 
+      padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+      align-self: flex-start;
+    }
+    .detail-body { font-size: 1rem; line-height: 1.6; color: #333; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -37,178 +73,334 @@
   <canvas id="canvas"></canvas>
 
   <div id="intro">
-    <div><b>화면을 클릭하면 시작합니다</b></div>
+    <div>
+      <b>Click to Start</b><br>
+      클릭하면 프로젝트가 쏟아집니다.
+    </div>
+  </div>
+
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-modal">
+      <div class="detail-header">
+        <div class="detail-title" id="detailTitle">제목</div>
+        <button class="detail-close" id="detailClose">×</button>
+      </div>
+      <div class="detail-tag" id="detailTag">Tag</div>
+      <div class="detail-body" id="detailBody">내용</div>
+    </div>
   </div>
 
   <script>
     // =================================================================
-    // 🔥 깔끔하게 초기화: icon 폴더의 1.png ~ 15.png 만 가져옵니다 🔥
-    // 상세설명/팝업 기능 다 뺐습니다.
+    // 👇👇👇 여기에 프로젝트 내용을 입력하세요 👇👇👇
     // =================================================================
-    const works = [];
-    for (let i = 1; i <= 15; i++) {
-      works.push({
-        id: i,
-        // icon 폴더 안의 이미지
-        imageSrc: './icon/' + i + '.png' 
-      });
-    }
+    const works = [
+      {
+        id: 'p1',
+        title: '나의 첫번째 프로젝트',
+        tag: 'Brand Design',
+        description: '이 프로젝트는 브랜드의 아이덴티티를 구축하는 작업이었습니다. 로고부터 패키지까지 전체적인 톤앤매너를 잡았습니다.',
+        imageSrc: 'https://picsum.photos/200/300?random=1'
+      },
+      {
+        id: 'p2',
+        title: '웹사이트 리뉴얼',
+        tag: 'Web Dev',
+        description: '기존의 노후화된 웹사이트를 최신 트렌드에 맞춰 반응형으로 리뉴얼했습니다. 속도 최적화에 중점을 두었습니다.',
+        imageSrc: 'https://picsum.photos/250/200?random=2'
+      },
+      {
+        id: 'p3',
+        title: '모바일 앱 UX/UI',
+        tag: 'UI/UX',
+        description: '사용자 경험을 최우선으로 고려한 배달 앱 디자인입니다. 복잡한 동선을 최소화했습니다.',
+        imageSrc: 'https://picsum.photos/200/200?random=3'
+      },
+      {
+        id: 'p4',
+        title: '편집 디자인',
+        tag: 'Editorial',
+        description: '독립 출판물의 표지와 내지를 디자인했습니다. 종이의 질감과 타이포그래피의 조화에 집중했습니다.',
+        imageSrc: 'https://picsum.photos/220/280?random=4'
+      },
+      {
+        id: 'p5',
+        title: '3D 모션 그래픽',
+        tag: 'Motion',
+        description: 'Blender를 활용한 숏폼 모션 그래픽 영상입니다. 역동적인 움직임을 표현했습니다.',
+        imageSrc: 'https://picsum.photos/200/200?random=5'
+      },
+      // 필요하면 아래에 계속 추가하세요:
+      // { id: '...', title: '...', tag: '...', description: '...', imageSrc: '...' },
+    ];
+    // =================================================================
+
+    const HITBOX_SCALE = 0.75; 
+    const FLOOR_OFFSET = 100;
 
     const Engine = Matter.Engine,
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Body = Matter.Body,
-          Mouse = Matter.Mouse,
-          MouseConstraint = Matter.MouseConstraint;
+          Query = Matter.Query,
+          Vector = Matter.Vector;
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
+    
+    const detailOverlay = document.getElementById('detailOverlay');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailTag = document.getElementById('detailTag');
+    const detailBody = document.getElementById('detailBody');
+    const detailClose = document.getElementById('detailClose');
 
-    // 이미지 미리 불러오기
     const loadedImages = {};
     let loadedCount = 0;
 
     function preloadImages(callback) {
       if (works.length === 0) { callback(); return; }
-      
       works.forEach(work => {
         const img = new Image();
-        // 로컬/깃허브용이라 crossOrigin 삭제함
-        
-        img.onerror = () => {
-          // 이미지가 없어도 멈추지 않고 빨간 박스로라도 보여주기 위해 카운트 올림
-          console.warn("이미지 로드 실패: " + work.imageSrc);
-          loadedCount++; 
-          if(loadedCount === works.length) callback();
-        };
-        
-        img.onload = () => {
-          loadedCount++;
-          if(loadedCount === works.length) callback();
-        };
-        
+        img.crossOrigin = "Anonymous"; 
+        img.onload = () => { loadedCount++; checkLoaded(callback); };
+        img.onerror = () => { loadedCount++; checkLoaded(callback); };
         img.src = work.imageSrc;
         loadedImages[work.id] = img;
       });
     }
+    function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    // 물리 엔진 설정
-    const engine = Engine.create({ enableSleeping: false });
+    const engine = Engine.create({ 
+      enableSleeping: true,
+      positionIterations: 8,
+      velocityIterations: 8
+    });
+    
     const world = engine.world;
-    engine.gravity.y = 2; // 적당한 중력
+    engine.gravity.y = 5; 
+
+    const isMobile = () => window.innerWidth <= 900;
+    let walls = [];
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
       createWalls();
     }
     window.addEventListener('resize', resizeCanvas);
 
-    let walls = [];
     function createWalls() {
       Composite.remove(world, walls);
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const thick = 200; 
+      const thick = 5000; 
       
       walls = [
-        Bodies.rectangle(w/2, h + thick/2 - 50, w * 2, thick, { isStatic: true }), // 바닥
-        Bodies.rectangle(-thick/2, h/2, thick, h * 2, { isStatic: true }), // 왼쪽 벽
-        Bodies.rectangle(w + thick/2, h/2, thick, h * 2, { isStatic: true }) // 오른쪽 벽
+        Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
+        Bodies.rectangle(-200, h/2, 400, h * 10, { isStatic: true, render: { visible: false } }),
+        Bodies.rectangle(w + 200, h/2, 400, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
     function spawnBoxes() {
       const w = window.innerWidth;
-      const baseSize = w < 600 ? 100 : 150; 
+      const baseSize = isMobile() ? 150 : 200;
 
       works.forEach((work) => {
         const img = loadedImages[work.id];
-        let width = baseSize;
-        let height = baseSize;
-
-        // 이미지 비율대로 크기 조절
+        let visualWidth = baseSize;
+        let visualHeight = baseSize;
+        
         if (img && img.complete && img.naturalWidth !== 0) {
-           const aspect = img.naturalHeight / img.naturalWidth;
-           width = baseSize;
-           height = width * aspect;
+          const aspect = img.naturalHeight / img.naturalWidth;
+          visualWidth = baseSize + (Math.random() - 0.5) * 40; 
+          visualHeight = visualWidth * aspect;
         }
 
-        const x = Math.random() * (w - 200) + 100;
-        const y = -Math.random() * 1000 - 100;
+        const physWidth = visualWidth * HITBOX_SCALE;
+        const physHeight = visualHeight * HITBOX_SCALE;
+        
+        const x = Math.random() * (w - 100) + 50;
+        const y = -Math.random() * 400 - 200; 
+        
+        const body = Bodies.rectangle(x, y, physWidth, physHeight, {
+          angle: Math.random() * Math.PI * 2,
+          chamfer: { radius: 10 },
+          frictionAir: 0, 
+          restitution: 0.4, 
+          friction: 0.5,
+          density: 0.005,
+          render: { visible: false },
+          customData: { work, image: img, width: visualWidth, height: visualHeight }
+        });
 
-        const body = Bodies.rectangle(x, y, width, height, {
-          restitution: 0.5,
-          friction: 0.1,
-          angle: Math.random() * Math.PI,
-          customData: { img: img, w: width, h: height, src: work.imageSrc } // 데이터 저장
+        Body.setVelocity(body, { 
+            x: (Math.random() - 0.5) * 5, 
+            y: Math.random() * 30 + 50 
         });
         
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.5);
         Composite.add(world, body);
       });
     }
 
-    // 마우스 드래그 기능 추가
-    const mouse = Mouse.create(canvas);
-    const mouseConstraint = MouseConstraint.create(engine, {
-      mouse: mouse,
-      constraint: { stiffness: 0.2, render: { visible: false } }
-    });
-    Composite.add(world, mouseConstraint);
-    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
-    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
-
-    // 렌더링 루프
-    function render() {
+    function renderLoop() {
       Engine.update(engine, 1000 / 60);
-      
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
+
       const bodies = Composite.allBodies(world);
+      ctx.beginPath();
       
-      for (let i = 0; i < bodies.length; i++) {
+      for (let i = 0; i < bodies.length; i += 1) {
         const body = bodies[i];
-        if (body.isStatic) continue; // 벽은 그리지 않음
+        if (body.isStatic) continue;
 
         const { x, y } = body.position;
+        const { width, height, image } = body.customData || {};
         const angle = body.angle;
-        const { img, w, h, src } = body.customData || {};
 
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
 
-        if (img && img.complete && img.naturalWidth !== 0) {
-          ctx.drawImage(img, -w/2, -h/2, w, h);
+        if (image && image.complete && image.naturalWidth !== 0) {
+            ctx.drawImage(image, -width/2, -height/2, width, height);
         } else {
-          // 이미지가 깨지거나 경로가 틀렸으면 빨간 박스 표시 (디버깅용)
-          ctx.fillStyle = 'red';
-          ctx.fillRect(-w/2, -h/2, w, h);
-          ctx.fillStyle = 'white';
-          ctx.font = '12px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText("X", 0, 5);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-width/2, -height/2, width, height);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText(work.title, 0, 0);
         }
-        
         ctx.restore();
       }
-      requestAnimationFrame(render);
+      requestAnimationFrame(renderLoop);
     }
 
-    // 시작
+    // ===== 클릭 로직 =====
+    let dragBody = null;
+    let isPointerDown = false;
+    let lastPointerX = 0, lastPointerY = 0;
+    let velocityX = 0, velocityY = 0;
+    let downTime = 0, moveDistance = 0;
+
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function onPointerDown(e) {
+      if (detailOverlay.classList.contains('open')) return;
+      window.focus();
+      const pos = getPointerPos(e);
+      lastPointerX = pos.x; lastPointerY = pos.y;
+      isPointerDown = true;
+      downTime = performance.now(); 
+      moveDistance = 0;
+
+      const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
+      const clicked = Query.point(bodies, pos);
+
+      if (clicked.length > 0) {
+        dragBody = clicked[0];
+        Matter.Sleeping.set(dragBody, false);
+        Body.setVelocity(dragBody, { x: 0, y: 0 });
+        Body.setAngularVelocity(dragBody, 0);
+      }
+    }
+
+    function onPointerMove(e) {
+      if (!isPointerDown) return;
+      e.preventDefault();
+      const pos = getPointerPos(e);
+      const dx = pos.x - lastPointerX;
+      const dy = pos.y - lastPointerY;
+      velocityX = dx; velocityY = dy;
+      moveDistance += Math.sqrt(dx*dx + dy*dy);
+
+      if (dragBody) {
+        Matter.Sleeping.set(dragBody, false);
+        Body.setPosition(dragBody, { x: dragBody.position.x + dx, y: dragBody.position.y + dy });
+        Body.setVelocity(dragBody, { x: 0, y: 0 });
+      }
+      lastPointerX = pos.x; lastPointerY = pos.y;
+    }
+
+    function onPointerUp(e) {
+      isPointerDown = false;
+      if (dragBody) {
+        Body.setVelocity(dragBody, { x: velocityX * 1.5, y: velocityY * 1.5 });
+        Body.setAngularVelocity(dragBody, Math.random() * 0.2 - 0.1);
+        dragBody = null;
+      } 
+      const elapsed = performance.now() - downTime;
+      
+      if (moveDistance < 20 && elapsed < 500) {
+        const pointerX = lastPointerX;
+        const pointerY = lastPointerY;
+        const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
+
+        for (let i = 0; i < bodies.length; i++) {
+            const body = bodies[i];
+            if (!body.customData) continue;
+            
+            const dist = Vector.magnitude(Vector.sub(body.position, { x: pointerX, y: pointerY }));
+            if (dist < body.customData.width * 0.6) {
+                showDetail(body.customData.work);
+                break;
+            }
+        }
+      }
+    }
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    canvas.addEventListener('mousemove', onPointerMove);
+    canvas.addEventListener('mouseup', onPointerUp);
+    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+    canvas.addEventListener('touchend', onPointerUp);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault(); spawnBoxes();       
+      }
+    });
+
+    let hasStarted = false;
     function start() {
+      if (hasStarted) return;
+      hasStarted = true;
       intro.classList.add('hidden');
       resizeCanvas();
       spawnBoxes();
-      render();
+      renderLoop();
     }
 
     preloadImages(() => {
       document.body.addEventListener('click', start, { once: true });
       document.body.addEventListener('touchstart', start, { once: true });
     });
+
+    function showDetail(work) {
+      detailTitle.textContent = work.title;
+      detailTag.textContent = work.tag;
+      detailBody.textContent = work.description;
+      detailOverlay.classList.add('open');
+    }
+    function hideDetail() { detailOverlay.classList.remove('open'); }
+    detailClose.addEventListener('click', hideDetail);
+    detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) hideDetail(); });
 
   </script>
 </body>
