@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Solid & Exact</title>
+  <title>Physics Wall - Contour Trick</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>이제 겹치지 않고 칼같이 맞닿습니다.<br>클릭하여 시작하세요.</div>
+    <div>윤곽선에 맞춰 모서리를 깎아냈습니다.<br>클릭하여 확인하세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,15 +67,21 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 조절 (완벽한 접촉을 위한 설정) ⭐
+    // ⭐ [핵심 수정] 윤곽선 인식을 흉내내는 설정 ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 = 1.0 (100%)
-    // 이미지 크기와 물리 박스 크기를 완전히 일치시킵니다.
-    // 절대 서로 파고들지 않습니다.
-    const HITBOX_SCALE = 1.0; 
+    // 1. 충돌 박스 크기 (0.85 추천)
+    // 1.0으로 하면 투명 여백 때문에 떠 보입니다.
+    // 0.85로 하면 투명한 외곽을 무시하고 안쪽 실제 그림끼리 닿는 느낌을 줍니다.
+    const HITBOX_SCALE = 0.85; 
 
-    // 2. 바닥 높이 띄우기 (px)
+    // 2. 모서리 깎기 강도 (0.0 ~ 0.5)
+    // 0 = 직각 네모 (여백 생김)
+    // 0.4 = 거의 원형/타원형 (여백 사라짐, 추천)
+    // PNG의 투명한 모서리 부분을 물리적으로 잘라냅니다.
+    const CORNER_RADIUS_RATIO = 0.4;
+
+    // 3. 바닥 높이 띄우기 (px)
     const FLOOR_OFFSET = 100; 
     
     // =================================================================
@@ -120,14 +126,10 @@
     }
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
-    // [수정] 물리 엔진 정밀도 향상
-    // positionIterations, velocityIterations를 높여서 
-    // 물체가 서로 겹치거나 뚫고 들어가는(Sinking) 현상을 방지
     const engine = Engine.create({
       positionIterations: 10,
       velocityIterations: 10
     });
-    
     const world = engine.world;
     engine.gravity.y = 1;
 
@@ -162,11 +164,9 @@
       Composite.add(world, walls);
     }
 
-    // ===== 아이콘 생성 =====
+    // ===== 아이콘 생성 (모서리 깎기 적용) =====
     function spawnBoxes() {
       const w = window.innerWidth;
-      
-      // 모바일 200px, PC 300px (큰 사이즈 유지)
       const baseSize = isMobile() ? 200 : 300;
 
       works.forEach((work, i) => {
@@ -181,21 +181,26 @@
           visualHeight = visualWidth * aspect;
         }
 
-        // 충돌 박스 크기 = 시각적 크기 (1:1)
+        // 물리 크기 계산
         const physWidth = visualWidth * HITBOX_SCALE;
         const physHeight = visualHeight * HITBOX_SCALE;
+
+        // [핵심] 모서리 깎기 (Chamfer) 반지름 계산
+        // 너비와 높이 중 작은 쪽의 40% 정도를 깎아내면 '알약' 모양이 됨
+        // 이렇게 하면 사각형의 투명한 꼭짓점 부분이 물리적으로 사라짐!
+        const chamferRadius = Math.min(physWidth, physHeight) * CORNER_RADIUS_RATIO;
 
         const x = Math.random() * (w - 100) + 50;
         const y = -Math.random() * 2000 - 300; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          // [수정] 모서리를 0으로 만들어 '칼같이' 닿게 함
-          chamfer: { radius: 0 }, 
-          restitution: 0.2, // 탄성 줄임 (덜 통통 튀게)
-          friction: 0.5,    // 마찰력 높임 (잘 쌓이게)
+          // 모서리를 둥글게 깎아서 윤곽선 효과를 냄
+          chamfer: { radius: chamferRadius }, 
+          restitution: 0.2,
+          friction: 0.5,
           frictionAir: 0.005, 
-          density: 0.005,   // 밀도 높임 (묵직하게)
+          density: 0.005,
           render: { visible: false },
           customData: { 
               work, 
@@ -233,13 +238,25 @@
           ctx.translate(x, y);
           ctx.rotate(angle);
           if (image.complete && image.naturalWidth !== 0) {
-             // 1:1 크기이므로 정확히 해당 영역에 그림
+             // 렌더링은 원본 직사각형 이미지 그대로
              ctx.drawImage(image, -width/2, -height/2, width, height);
           } else {
              ctx.fillStyle = '#ccc';
              ctx.fillRect(-width/2, -height/2, width, height);
           }
           ctx.restore();
+          
+          // [디버그용] 실제 물리 충돌 박스가 어떻게 생겼는지 보고 싶으면 주석 해제하세요
+          /*
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          // 알약 모양 확인용
+          ctx.strokeRect(-width*HITBOX_SCALE/2, -height*HITBOX_SCALE/2, width*HITBOX_SCALE, height*HITBOX_SCALE); 
+          ctx.restore();
+          */
         }
       }
       requestAnimationFrame(renderLoop);
