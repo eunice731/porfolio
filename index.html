@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Big & Bold</title>
+  <title>Physics Wall - No Overlap</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>이제 이미지가 훨씬 커졌습니다.<br>클릭하여 시작하세요.</div>
+    <div>이미지가 겹치지 않고 단단하게 쌓입니다.<br>클릭하여 시작하세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,14 +67,16 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 조절 ⭐
+    // ⭐ 설정값 조절 (핵심 수정) ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (이미지끼리 겹치는 정도)
-    const HITBOX_SCALE = 0.6; 
+    // 1. 충돌 박스 크기 (0.95 = 95%)
+    // 이미지의 가장자리 5% 투명 영역만 무시하고, 나머지 95%는 단단한 물체로 인식합니다.
+    // 서로 겹치지 않고 "딱" 맞닿게 됩니다.
+    const HITBOX_SCALE = 0.95; 
 
     // 2. 바닥 높이 띄우기 (px)
-    const FLOOR_OFFSET = 50; 
+    const FLOOR_OFFSET = 100; 
     
     // =================================================================
 
@@ -146,22 +148,19 @@
       const thick = 200;
       
       walls = [
-        // 바닥
         Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
-        // 좌우 벽
         Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
-    // ===== ⭐ 이미지 사이즈 대폭 확대 ⭐ =====
+    // ===== 아이콘 생성 =====
     function spawnBoxes() {
       const w = window.innerWidth;
       
-      // [수정] 기본 사이즈를 크게 키움
-      // 모바일: 150px, PC: 300px
-      const baseSize = isMobile() ? 150 : 300;
+      // 모바일 200px, PC 300px (크기 유지)
+      const baseSize = isMobile() ? 200 : 300;
 
       works.forEach((work, i) => {
         const img = loadedImages[work.id];
@@ -171,8 +170,7 @@
         
         if (img && img.naturalWidth) {
           const aspect = img.naturalHeight / img.naturalWidth;
-          // 랜덤 변화폭도 비례해서 키움 (±40)
-          visualWidth = baseSize + (Math.random() - 0.5) * 40; 
+          visualWidth = baseSize + (Math.random() - 0.5) * 50; 
           visualHeight = visualWidth * aspect;
         }
 
@@ -180,11 +178,11 @@
         const physHeight = visualHeight * HITBOX_SCALE;
 
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 1500 - 300; // 더 커졌으니 더 높이서 떨어뜨림
+        const y = -Math.random() * 2000 - 300; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 30 * HITBOX_SCALE }, // 모서리 둥글기도 조금 더 줌
+          chamfer: { radius: 20 }, // 둥근 모서리는 살짝 줄임 (충돌 정확도 위해)
           restitution: 0.5,
           friction: 0.3,
           frictionAir: 0.005, 
