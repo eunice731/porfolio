@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Perfect Stacking</title>
+  <title>Physics Wall - Full Features & Tight Stacking</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>화면을 클릭하여 시작하세요.<br><b>[Spacebar]</b>를 누르면 이미지가 계속 쌓입니다.</div>
+    <div>클릭하여 시작하세요.<br><b>[Spacebar]</b>를 누르면 이미지가 계속 쌓입니다.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,15 +67,22 @@
 
   <script>
     // =================================================================
-    // ⭐ Stacking을 위한 물리 설정 ⭐
+    // ⭐ 빈틈없는 Stacking을 위한 설정값 ⭐
     // =================================================================
-    const HITBOX_SCALE = 1.0;  // 1:1 크기로 딱 맞게 설정
-    const FLOOR_OFFSET = 20;   // 바닥에 거의 붙도록 설정
     
+    // 1. 이미지가 꽉 닿게 하기 위해 1.0으로 설정 (여백이 느껴진다면 0.95로 줄이세요)
+    const HITBOX_SCALE = 1.0; 
+
+    // 2. 바닥 오프셋 (바닥에 딱 붙도록 조정)
+    const FLOOR_OFFSET = 20; 
+    
+    // =================================================================
+
     const Engine = Matter.Engine,
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Body = Matter.Body,
+          Vector = Matter.Vector,
           Query = Matter.Query;
 
     const canvas = document.getElementById('canvas');
@@ -92,34 +99,41 @@
       id: `work-${i+1}`,
       title: `Project ${i+1}`,
       tag: 'Design',
-      description: '상세 설명 텍스트입니다.',
+      description: '설명 텍스트입니다.',
       imageSrc: `./icon/${i+1}.png`
     }));
 
     const loadedImages = {};
     let loadedCount = 0;
     function preloadImages(callback) {
+      if (works.length === 0) { callback(); return; }
       works.forEach(work => {
         const img = new Image();
-        img.onload = () => { loadedCount++; if(loadedCount === works.length) callback(); };
-        img.onerror = () => { loadedCount++; if(loadedCount === works.length) callback(); };
+        img.onload = () => { loadedCount++; checkLoaded(callback); };
+        img.onerror = () => { loadedCount++; checkLoaded(callback); };
         img.src = work.imageSrc;
         loadedImages[work.id] = img;
       });
     }
+    function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
     const engine = Engine.create();
-    // 물체 간의 미세한 간격(slop)을 0으로 만들어 빈틈을 제거합니다.
-    engine.constraintIterations = 10;
-    engine.positionIterations = 10;
     const world = engine.world;
-    engine.gravity.y = 1.5; // 빨리 쌓이도록 중력 강화
+    engine.gravity.y = 1.2; 
+    
+    // 물리 엔진 오차 여백(slop) 제거 (빈틈 방지 핵심)
+    engine.positionIterations = 15;
+    engine.constraintIterations = 15;
 
+    const isMobile = () => window.innerWidth <= 900;
     let walls = [];
+
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
       ctx.resetTransform();
       ctx.scale(dpr, dpr);
       createWalls();
@@ -130,39 +144,53 @@
       Composite.remove(world, walls);
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const thick = 100;
+      const thick = 200;
+      
       walls = [
-        // 바닥 (빈틈없이 쌓이도록 얇게 조정)
-        Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 5, thick, { isStatic: true }),
+        // 바닥
+        Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, friction: 1 }),
         // 좌우 벽
-        Bodies.rectangle(-thick/2, h/2, thick, h * 5, { isStatic: true }),
-        Bodies.rectangle(w + thick/2, h/2, thick, h * 5, { isStatic: true })
+        Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, friction: 1 }),
+        Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, friction: 1 })
       ];
       Composite.add(world, walls);
     }
 
     function spawnBoxes() {
       const w = window.innerWidth;
-      const baseSize = window.innerWidth < 900 ? 150 : 220;
+      const baseSize = isMobile() ? 150 : 200;
 
-      works.forEach((work) => {
+      works.forEach((work, i) => {
         const img = loadedImages[work.id];
-        let vW = baseSize;
-        let vH = baseSize;
+        let visualWidth = baseSize;
+        let visualHeight = baseSize;
+        
         if (img && img.naturalWidth) {
-          vH = vW * (img.naturalHeight / img.naturalWidth);
+          const aspect = img.naturalHeight / img.naturalWidth;
+          visualWidth = baseSize + (Math.random() - 0.5) * 40; 
+          visualHeight = visualWidth * aspect;
         }
 
-        const x = Math.random() * (w - 200) + 100;
-        const y = -Math.random() * 1000 - 100; // 위에서 떨어짐
+        const physWidth = visualWidth * HITBOX_SCALE;
+        const physHeight = visualHeight * HITBOX_SCALE;
+
+        const x = Math.random() * (w - 100) + 50;
+        const y = -Math.random() * 1000 - 200; 
         
-        const body = Bodies.rectangle(x, y, vW * HITBOX_SCALE, vH * HITBOX_SCALE, {
-          restitution: 0.1, // 튀지 않음
-          friction: 1.0,    // 마찰력 최대 (차곡차곡 쌓임)
+        const body = Bodies.rectangle(x, y, physWidth, physHeight, {
+          angle: Math.random() * Math.PI * 2,
+          chamfer: { radius: 2 }, // 굴곡을 최소화하여 빈틈 제거
+          restitution: 0.1,       // 튀어오름 방지
+          friction: 1.0,          // 마찰력 최대 (쌓임 최적화)
           frictionStatic: 1.0,
-          slop: 0,          // 물리적 여백 제거 (핵심)
-          chamfer: { radius: 2 }, // 모서리를 아주 조금만 깎아 틈 방지
-          customData: { work, image: img, width: vW, height: vH }
+          slop: 0,                // 물리 엔진 여백 0 (핵심)
+          render: { visible: false },
+          customData: { 
+              work, 
+              image: img, 
+              width: visualWidth, 
+              height: visualHeight 
+          }
         });
 
         Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
@@ -172,70 +200,107 @@
 
     function renderLoop() {
       Engine.update(engine, 1000 / 60);
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
 
       const bodies = Composite.allBodies(world);
-      for (let i = 0; i < bodies.length; i++) {
+      
+      for (let i = 0; i < bodies.length; i += 1) {
         const body = bodies[i];
-        if (body.isStatic || !body.customData) continue;
+        if (body.isStatic) continue;
 
         const { x, y } = body.position;
-        const { width, height, image } = body.customData;
-        
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(body.angle);
-        if (image && image.complete) {
-          ctx.drawImage(image, -width/2, -height/2, width, height);
+        const { width, height, image } = body.customData || {};
+        const angle = body.angle;
+
+        if (image) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          if (image.complete && image.naturalWidth !== 0) {
+             ctx.drawImage(image, -width/2, -height/2, width, height);
+          } else {
+             ctx.fillStyle = '#ccc';
+             ctx.fillRect(-width/2, -height/2, width, height);
+          }
+          ctx.restore();
         }
-        ctx.restore();
       }
       requestAnimationFrame(renderLoop);
     }
 
-    // 마우스/터치 제어 및 상세 보기
-    let dragBody = null, isDown = false, lastPos = {x:0, y:0}, dist = 0, startTime = 0;
+    // 원본 관성 드래그 및 상세 로직 유지
+    let dragBody = null;
+    let isPointerDown = false;
+    let lastPointerX = 0, lastPointerY = 0;
+    let velocityX = 0, velocityY = 0;
+    let downTime = 0, moveDistance = 0;
 
-    function handleDown(e) {
-      window.focus();
-      isDown = true; startTime = Date.now(); dist = 0;
-      const pos = { x: (e.clientX || e.touches[0].clientX), y: (e.clientY || e.touches[0].clientY) };
-      lastPos = pos;
-      const clicked = Query.point(Composite.allBodies(world).filter(b=>!b.isStatic), pos);
-      if(clicked.length > 0) dragBody = clicked[0];
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      if(e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      }
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
 
-    function handleMove(e) {
-      if(!isDown) return;
-      const pos = { x: (e.clientX || e.touches[0].clientX), y: (e.clientY || e.touches[0].clientY) };
-      const dx = pos.x - lastPos.x; const dy = pos.y - lastPos.y;
-      dist += Math.sqrt(dx*dx + dy*dy);
-      if(dragBody) {
+    function onPointerDown(e) {
+      window.focus(); 
+      if (e.cancelable) e.preventDefault();
+      const pos = getPointerPos(e);
+      lastPointerX = pos.x; lastPointerY = pos.y;
+      isPointerDown = true;
+      downTime = performance.now(); moveDistance = 0;
+
+      const clicked = Query.point(Composite.allBodies(world).filter(b => !b.isStatic), pos);
+      if (clicked.length > 0) {
+        dragBody = clicked[0];
+        Body.setVelocity(dragBody, { x: 0, y: 0 });
+      }
+    }
+
+    function onPointerMove(e) {
+      if (!isPointerDown) return;
+      if (e.cancelable) e.preventDefault();
+      const pos = getPointerPos(e);
+      const dx = pos.x - lastPointerX;
+      const dy = pos.y - lastPointerY;
+      velocityX = dx; velocityY = dy;
+      moveDistance += Math.sqrt(dx*dx + dy*dy);
+
+      if (dragBody) {
         Body.setPosition(dragBody, { x: dragBody.position.x + dx, y: dragBody.position.y + dy });
-        Body.setVelocity(dragBody, { x: dx, y: dy });
+        Body.setVelocity(dragBody, { x: 0, y: 0 });
       }
-      lastPos = pos;
+      lastPointerX = pos.x; lastPointerY = pos.y;
     }
 
-    function handleUp() {
-      if(!dragBody && dist < 10 && (Date.now() - startTime) < 300) {
-        const clicked = Query.point(Composite.allBodies(world), lastPos);
-        if(clicked[0]?.customData) showDetail(clicked[0].customData.work);
+    function onPointerUp(e) {
+      isPointerDown = false;
+      if (dragBody) {
+        Body.setVelocity(dragBody, { x: velocityX * 1.5, y: velocityY * 1.5 });
+        dragBody = null;
+      } else {
+        const elapsed = performance.now() - downTime;
+        if (moveDistance < 10 && elapsed < 300) {
+          const clicked = Query.point(Composite.allBodies(world).filter(b => !b.isStatic), {x: lastPointerX, y: lastPointerY});
+          if (clicked.length > 0 && clicked[0].customData) showDetail(clicked[0].customData.work);
+        }
       }
-      isDown = false; dragBody = null;
     }
 
-    canvas.addEventListener('mousedown', handleDown);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    canvas.addEventListener('touchstart', handleDown, {passive: false});
-    window.addEventListener('touchmove', handleMove, {passive: false});
-    window.addEventListener('touchend', handleUp);
+    canvas.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
-        spawnBoxes(); // 스페이스바 누를 때마다 이미지 세트 추가 투하
+        spawnBoxes(); 
       }
     });
 
@@ -261,7 +326,7 @@
       detailOverlay.classList.add('open');
     }
     detailClose.addEventListener('click', () => detailOverlay.classList.remove('open'));
-    detailOverlay.addEventListener('click', (e) => { if(e.target === detailOverlay) detailOverlay.classList.remove('open'); });
+    detailOverlay.addEventListener('click', e => { if(e.target === detailOverlay) detailOverlay.classList.remove('open'); });
 
   </script>
 </body>
