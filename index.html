@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio - GitHub 1~15 Auto Load</title>
+  <title>Portfolio - Icon Folder Only</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -92,8 +92,8 @@
 
   <script>
     // =================================================================
-    // 🔥 [복구 완료] 1.png ~ 15.png 자동 생성 코드 🔥
-    // 깃허브에 올린 파일명과 똑같이 (같은 폴더에) 있으면 바로 뜹니다.
+    // 🔥 [최종 수정] icon 폴더 연결 완료 🔥
+    // 이제 외부 이미지는 절대 안 나옵니다.
     // =================================================================
     const works = [];
     
@@ -102,12 +102,11 @@
       works.push({
         id: 'work-' + i,
         title: 'Project ' + i,  
-        description: i + '번 프로젝트의 상세 설명입니다.',
+        description: i + '번 프로젝트 설명입니다.',
         
-        // ⭐ 중요: 같은 폴더에 있는 1.png, 2.png... 를 가져옵니다.
-        // 만약 'icon' 폴더 안에 있다면 './icon/' + i + '.png' 로 바꾸시면 됩니다.
-        imageSrc: './' + i + '.png',
-        detailImage: './' + i + '.png' 
+        // 👇 [핵심] 사용자의 'icon' 폴더를 바라보도록 경로를 수정했습니다.
+        imageSrc: './icon/' + i + '.png',
+        detailImage: './icon/' + i + '.png' 
       });
     }
     // =================================================================
@@ -139,11 +138,10 @@
       if (works.length === 0) { callback(); return; }
       works.forEach(work => {
         const img = new Image();
-        // 깃허브 로컬 파일 사용시 crossOrigin 필요 없음 (삭제함)
         
+        // 오류 발생 시 콘솔에 경로를 출력해서 확인 가능하게 함
         img.onerror = () => { 
-            // 이미지가 없으면 오류가 나지 않게 넘깁니다.
-            console.warn("이미지 로드 실패 (" + work.imageSrc + "). 경로를 확인하세요.");
+            console.warn("이미지 로드 실패: " + work.imageSrc + " (icon 폴더 안에 파일이 있는지 확인하세요)");
             loadedCount++; checkLoaded(callback); 
         };
         img.onload = () => { loadedCount++; checkLoaded(callback); };
@@ -161,7 +159,7 @@
     });
     
     const world = engine.world;
-    engine.gravity.y = 5; // 빠른 속도
+    engine.gravity.y = 5; // 빠른 중력 유지
 
     const isMobile = () => window.innerWidth <= 900;
     let walls = [];
@@ -216,7 +214,7 @@
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
           chamfer: { radius: 10 },
-          frictionAir: 0, // 공기저항 0 (빠르게)
+          frictionAir: 0, // 공기저항 0 (쾌속)
           restitution: 0.4, 
           friction: 0.5,
           density: 0.005,
@@ -257,13 +255,13 @@
         if (image && image.complete && image.naturalWidth !== 0) {
             ctx.drawImage(image, -width/2, -height/2, width, height);
         } else {
-            // 이미지가 아직 로드 안됐거나 없을 때
+            // 이미지가 없을 때 디버깅용 박스
             ctx.fillStyle = '#333';
             ctx.fillRect(-width/2, -height/2, width, height);
             ctx.fillStyle = '#fff';
             ctx.font = '14px sans-serif';
             ctx.textAlign = 'center';
-            // 디버깅을 위해 파일명 표시
+            // 파일 경로를 화면에 찍어서 확인시켜줌
             ctx.fillText(work.imageSrc, 0, 0);
         }
         ctx.restore();
