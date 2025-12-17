@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Big & Bold + Spacebar</title>
+  <title>Physics Wall - Perfect Balance</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>클릭하여 시작하세요.<br><b>[Spacebar]</b>를 누르면 이미지가 계속 쏟아집니다.</div>
+    <div>이제 적당히 겹칩니다.<br><b>[Spacebar]</b>로 아이콘을 쏟아보세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,11 +67,14 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 조절 ⭐
+    // ⭐ 설정값 조절 (황금 비율) ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (이미지끼리 겹치는 정도)
-    const HITBOX_SCALE = 0.6; 
+    // 1. 충돌 박스 크기 (0.85 추천)
+    // 0.6 -> 너무 많이 겹침
+    // 1.0 -> 붕 떠 보임
+    // 0.85 -> 살짝만 겹치고 단단해 보임
+    const HITBOX_SCALE = 0.85; 
 
     // 2. 바닥 높이 띄우기 (px)
     const FLOOR_OFFSET = 100; 
@@ -89,7 +92,6 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -146,20 +148,16 @@
       const thick = 200;
       
       walls = [
-        // 바닥
         Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
-        // 좌우 벽
         Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
-    // ===== ⭐ 이미지 사이즈 대폭 확대 ⭐ =====
+    // ===== 아이콘 생성 =====
     function spawnBoxes() {
       const w = window.innerWidth;
-      
-      // 모바일: 150px, PC: 200px
       const baseSize = isMobile() ? 150 : 200;
 
       works.forEach((work, i) => {
@@ -178,7 +176,6 @@
         const physHeight = visualHeight * HITBOX_SCALE;
 
         const x = Math.random() * (w - 100) + 50;
-        // [중요] 스페이스바 누를 때 화면 위 보이지 않는 곳에서 떨어지도록 Y값 설정
         const y = -Math.random() * 1000 - 200; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
@@ -236,7 +233,7 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 수동 제어 로직 =====
+    // ===== 수동 제어 =====
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
@@ -252,7 +249,6 @@
     }
 
     function onPointerDown(e) {
-      // 캔버스 클릭 시 포커스를 줘서 키보드 입력이 잘 먹히도록 함
       window.focus(); 
       e.preventDefault();
       const pos = getPointerPos(e);
@@ -315,14 +311,11 @@
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
 
-    // =======================================================
-    // ⭐ [추가됨] 스페이스바 기능 ⭐
-    // =======================================================
+    // 스페이스바 기능
     window.addEventListener('keydown', (e) => {
-      // Space 또는 Spacebar 키 확인
       if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault(); // 스크롤 방지
-        spawnBoxes();       // 이미지 추가 생성 (쌓이기)
+        e.preventDefault(); 
+        spawnBoxes();       
       }
     });
 
