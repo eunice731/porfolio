@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Huge Size</title>
+  <title>Physics Wall - Big & Bold</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>초대형 아이콘 모드입니다.<br>클릭하여 시작하세요.</div>
+    <div>이제 이미지가 훨씬 커졌습니다.<br>클릭하여 시작하세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -70,7 +70,7 @@
     // ⭐ 설정값 조절 ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (0.6 = 60% 크기)
+    // 1. 충돌 박스 크기 (이미지끼리 겹치는 정도)
     const HITBOX_SCALE = 0.6; 
 
     // 2. 바닥 높이 띄우기 (px)
@@ -146,19 +146,22 @@
       const thick = 200;
       
       walls = [
+        // 바닥
         Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
+        // 좌우 벽
         Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
-    // ===== ⭐ 여기가 사이즈 조절하는 곳입니다 ⭐ =====
+    // ===== ⭐ 이미지 사이즈 대폭 확대 ⭐ =====
     function spawnBoxes() {
       const w = window.innerWidth;
       
-      // [수정] 모바일 200px, PC 300px로 대폭 확대
-      const baseSize = isMobile() ? 200 : 300;
+      // [수정] 기본 사이즈를 크게 키움
+      // 모바일: 150px, PC: 200px
+      const baseSize = isMobile() ? 150 : 200;
 
       works.forEach((work, i) => {
         const img = loadedImages[work.id];
@@ -168,7 +171,8 @@
         
         if (img && img.naturalWidth) {
           const aspect = img.naturalHeight / img.naturalWidth;
-          visualWidth = baseSize + (Math.random() - 0.5) * 50; // 랜덤 변화폭도 조금 늘림
+          // 랜덤 변화폭도 비례해서 키움 (±40)
+          visualWidth = baseSize + (Math.random() - 0.5) * 40; 
           visualHeight = visualWidth * aspect;
         }
 
@@ -176,11 +180,11 @@
         const physHeight = visualHeight * HITBOX_SCALE;
 
         const x = Math.random() * (w - 100) + 50;
-        const y = -Math.random() * 2000 - 300; // 더 커졌으니 훨씬 더 높이서 떨어뜨림
+        const y = -Math.random() * 1500 - 300; // 더 커졌으니 더 높이서 떨어뜨림
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 30 * HITBOX_SCALE },
+          chamfer: { radius: 30 * HITBOX_SCALE }, // 모서리 둥글기도 조금 더 줌
           restitution: 0.5,
           friction: 0.3,
           frictionAir: 0.005, 
