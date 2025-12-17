@@ -2,13 +2,13 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Big & Bold + Spacebar</title>
+  <title>Physics Wall - Extreme Overlap</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
     * { box-sizing: border-box; }
     html, body {
-      margin: 0; padding: 0; width: 80%; height: 80%;
+      margin: 0; padding: 0; width: 100%; height: 100%;
       overflow: hidden;
       font-family: system-ui, -apple-system, sans-serif;
       background: #ffffff;
@@ -53,7 +53,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="intro">
-    <div>클릭하여 시작하세요.<br><b>[Spacebar]</b>를 누르면 이미지가 계속 쏟아집니다.</div>
+    <div><b>[강제 겹침 모드]</b><br>무조건 겹칩니다. Spacebar를 눌러보세요.</div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
@@ -67,14 +67,15 @@
 
   <script>
     // =================================================================
-    // ⭐ 설정값 조절 ⭐
+    // ⭐ 여기를 수정했습니다 (무조건 겹치게) ⭐
     // =================================================================
     
-    // 1. 충돌 박스 크기 (이미지끼리 겹치는 정도)
-    const HITBOX_SCALE = 0.4; 
+    // 1. 충돌 박스 크기 (0.6 -> 0.45)
+    // 이미지 크기의 45%만 물리 적용 -> 나머지 55%는 무조건 겹쳐 보임
+    const HITBOX_SCALE = 0.45; 
 
-    // 2. 바닥 높이 띄우기 (px)
-    const FLOOR_OFFSET = 50; 
+    // 2. 바닥 높이
+    const FLOOR_OFFSET = 100; 
     
     // =================================================================
 
@@ -89,7 +90,6 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
@@ -146,20 +146,16 @@
       const thick = 200;
       
       walls = [
-        // 바닥
         Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
-        // 좌우 벽
         Bodies.rectangle(-thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(w + thick/2, h/2, thick, h * 10, { isStatic: true, render: { visible: false } })
       ];
       Composite.add(world, walls);
     }
 
-    // ===== ⭐ 이미지 사이즈 대폭 확대 ⭐ =====
+    // ===== 아이콘 생성 =====
     function spawnBoxes() {
       const w = window.innerWidth;
-      
-      // 모바일: 150px, PC: 200px
       const baseSize = isMobile() ? 150 : 200;
 
       works.forEach((work, i) => {
@@ -178,14 +174,15 @@
         const physHeight = visualHeight * HITBOX_SCALE;
 
         const x = Math.random() * (w - 100) + 50;
-        // [중요] 스페이스바 누를 때 화면 위 보이지 않는 곳에서 떨어지도록 Y값 설정
-        const y = -Math.random() * 1000 - 200; 
+        const y = -Math.random() * 800 - 200; 
         
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
-          chamfer: { radius: 30 * HITBOX_SCALE }, 
-          restitution: 0.5,
-          friction: 0.3,
+          // [수정됨] chamfer(둥근 모서리) 제거 -> 0
+          // 이게 0이어야 빈틈없이 딱 붙습니다.
+          chamfer: { radius: 0 }, 
+          restitution: 0.2, // 튕김 정도 줄임
+          friction: 0.5,
           frictionAir: 0.005, 
           density: 0.002, 
           render: { visible: false },
@@ -236,7 +233,7 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 수동 제어 로직 =====
+    // ===== 수동 제어 =====
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
@@ -252,7 +249,6 @@
     }
 
     function onPointerDown(e) {
-      // 캔버스 클릭 시 포커스를 줘서 키보드 입력이 잘 먹히도록 함
       window.focus(); 
       e.preventDefault();
       const pos = getPointerPos(e);
@@ -315,14 +311,10 @@
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
 
-    // =======================================================
-    // ⭐ [추가됨] 스페이스바 기능 ⭐
-    // =======================================================
     window.addEventListener('keydown', (e) => {
-      // Space 또는 Spacebar 키 확인
       if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault(); // 스크롤 방지
-        spawnBoxes();       // 이미지 추가 생성 (쌓이기)
+        e.preventDefault(); 
+        spawnBoxes();       
       }
     });
 
