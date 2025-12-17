@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Local Icon Fix</title>
+  <title>Physics Wall - Optimized Speed</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -32,7 +32,6 @@
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
-    /* 모달 스타일 (코드에 포함되어 있어서 유지함, 기능은 끔) */
     .detail-overlay { display: none; } 
   </style>
 </head>
@@ -42,22 +41,20 @@
 
   <div id="intro">
     <div>
-      <b>[로컬 이미지 모드]</b><br>
-      icon 폴더의 이미지를 불러옵니다.<br>
+      <b>[속도 조절 완료]</b><br>
+      이제 적당한 속도로 떨어집니다.<br>
       클릭하여 시작
     </div>
   </div>
 
   <script>
     // =================================================================
-    // 🔥 [수정 완료] 외부 이미지 주소 삭제함 🔥
-    // 이제 무조건 ./icon/1.png ~ ./icon/15.png 만 찾습니다.
+    // ✅ 경로 설정 (icon 폴더)
     // =================================================================
     const works = [];
     for (let i = 1; i <= 15; i++) {
       works.push({
         id: 'work-' + i,
-        // 👇 여기가 핵심입니다. 외부 주소 절대 없음.
         imageSrc: './icon/' + i + '.png'
       });
     }
@@ -84,8 +81,6 @@
       if (works.length === 0) { callback(); return; }
       works.forEach(work => {
         const img = new Image();
-        // 로컬/깃허브용 설정 (crossOrigin 삭제)
-        
         img.onload = () => { loadedCount++; checkLoaded(callback); };
         img.onerror = () => { 
             console.warn("이미지 로드 실패: " + work.imageSrc);
@@ -104,7 +99,10 @@
     });
     
     const world = engine.world;
-    engine.gravity.y = 5; 
+    
+    // 🔥 [수정 1] 중력 조절 (5 -> 2.5)
+    // 숫자가 클수록 빨리 떨어집니다. 너무 느리면 3 정도로 올리세요.
+    engine.gravity.y = 2.5; 
 
     const isMobile = () => window.innerWidth <= 900;
     let walls = [];
@@ -159,7 +157,10 @@
         const body = Bodies.rectangle(x, y, physWidth, physHeight, {
           angle: Math.random() * Math.PI * 2,
           chamfer: { radius: 10 },
-          frictionAir: 0, 
+          
+          // 🔥 [수정 2] 공기 저항 추가 (0 -> 0.01)
+          // 0이면 진공 상태라 계속 빨라집니다. 살짝 저항을 줬습니다.
+          frictionAir: 0.01, 
           restitution: 0.4, 
           friction: 0.5,
           density: 0.005,
@@ -167,12 +168,14 @@
           customData: { work, image: img, width: visualWidth, height: visualHeight }
         });
 
+        // 🔥 [수정 3] 초기 투척 속도 조절
+        // y값이 50~80이던 걸 20~40으로 줄였습니다.
         Body.setVelocity(body, { 
             x: (Math.random() - 0.5) * 5, 
-            y: Math.random() * 30 + 50 
+            y: Math.random() * 20 + 20 
         });
         
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.5);
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.3);
         Composite.add(world, body);
       });
     }
@@ -201,7 +204,6 @@
         if (image && image.complete && image.naturalWidth !== 0) {
             ctx.drawImage(image, -width/2, -height/2, width, height);
         } else {
-            // 이미지가 없으면 회색 박스 대신 파일명을 표시해 디버깅 도움
             ctx.fillStyle = '#eee';
             ctx.fillRect(-width/2, -height/2, width, height);
             ctx.fillStyle = 'red';
@@ -214,7 +216,7 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // ===== 클릭 및 상호작용 (드래그만 남김) =====
+    // ===== 클릭 및 상호작용 =====
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
