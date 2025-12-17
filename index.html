@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Physics Wall - Final Click Fix</title>
+  <title>Portfolio - Smart Image Handling</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -12,16 +12,15 @@
       overflow: hidden;
       font-family: system-ui, -apple-system, sans-serif;
       background: #ffffff;
-      touch-action: none; /* 모바일 확대/축소 방지 */
+      touch-action: none; 
     }
     canvas {
       position: fixed; inset: 0; display: block;
       width: 100%; height: 100%; cursor: grab;
-      z-index: 1; /* 캔버스는 뒤로 */
+      z-index: 1;
     }
     canvas:active { cursor: grabbing; }
     
-    /* 인트로 화면 */
     #intro {
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
@@ -29,48 +28,62 @@
       pointer-events: none;
       font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; 
-      z-index: 10; /* 캔버스보다 위 */
+      z-index: 10; 
       background: rgba(255,255,255,0.85);
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
-    /* =========================================
-       🔥 상세 설명창 (모달) 스타일 - 최상단 배치
-       ========================================= */
+    /* 모달 스타일 */
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
       background: rgba(0,0,0,0.4);
       opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
-      z-index: 9999; /* 무조건 제일 위 */
+      z-index: 9999;
+      padding: 20px;
     }
     .detail-overlay.open { opacity: 1; pointer-events: auto; }
     
     .detail-modal {
-      width: min(400px, 80vw); 
+      width: min(500px, 90vw); 
+      max-height: 85vh; 
       background: #fff; 
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
       padding: 30px; 
       transform: translateY(20px); transition: transform 0.25s ease;
-      display: flex; flex-direction: column; gap: 10px;
+      display: flex; flex-direction: column; gap: 15px;
+      overflow-y: auto; 
     }
     .detail-overlay.open .detail-modal { transform: translateY(0); }
     
     .detail-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .detail-title { font-weight: 800; font-size: 1.4rem; color: #111; margin: 0; }
+    .detail-title { font-weight: 800; font-size: 1.5rem; color: #111; margin: 0; }
     .detail-close { 
       cursor: pointer; border: none; background: transparent; 
-      font-size: 1.5rem; line-height: 1; color: #999; padding: 0;
+      font-size: 2rem; line-height: 0.8; color: #999; padding: 0;
     }
     .detail-close:hover { color: #000; }
     
+    .detail-img-box {
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f5f5f5;
+      display: flex; align-items: center; justify-content: center;
+      /* 이미지가 없으면 JS로 display: none 처리됨 */
+    }
+    .detail-img {
+      width: 100%; height: auto; display: block;
+      object-fit: cover;
+    }
+
     .detail-tag { 
       display: inline-block; background: #f0f0f0; color: #555; 
-      padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+      padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
       align-self: flex-start;
     }
-    .detail-body { font-size: 0.95rem; line-height: 1.6; color: #444; margin-top: 5px; }
+    .detail-body { font-size: 1rem; line-height: 1.6; color: #444; white-space: pre-line; }
   </style>
 </head>
 <body>
@@ -79,40 +92,156 @@
 
   <div id="intro">
     <div>
-      <b>[클릭 수정 완료]</b><br>
-      박스를 누르면 설명창이 뜹니다.<br>
-      화면을 클릭하여 시작하세요.
+      <b>[스마트 이미지 처리]</b><br>
+      사진이 없는 항목은<br>
+      이미지 칸이 자동으로 사라집니다.
     </div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
     <div class="detail-modal">
       <div class="detail-header">
-        <h2 class="detail-title" id="detailTitle">제목</h2>
+        <h2 class="detail-title" id="detailTitle">Title</h2>
         <button class="detail-close" id="detailClose">×</button>
       </div>
+      
+      <div class="detail-img-box" id="detailImgBox">
+        <img src="" alt="Detail" class="detail-img" id="detailMainImg">
+      </div>
+
       <div class="detail-tag" id="detailTag">Tag</div>
-      <div class="detail-body" id="detailBody">설명 내용이 여기에 나옵니다.</div>
+      <div class="detail-body" id="detailBody">Desc</div>
     </div>
   </div>
 
   <script>
     // =================================================================
-    // 🔥 데이터 설정 (로컬 전용)
+    // 🔥 데이터 설정
+    // detailImage가 ''(빈따옴표)이면 이미지 박스가 아예 안 나옵니다.
     // =================================================================
-    const works = [];
-    for (let i = 1; i <= 15; i++) {
-      works.push({
-        id: 'work-' + i,
-        // 👇 로컬 경로 (icon 폴더)
-        imageSrc: './icon/' + i + '.png',
-        
-        // 👇 모달에 뜰 내용
-        title: `Project Title ${i}`,
-        tag: i % 2 === 0 ? 'Design' : 'Development',
-        desc: `${i}번 프로젝트입니다. 이곳에 상세 설명을 적으시면 됩니다.`
-      });
-    }
+    const works = [
+      {
+        id: 'work-1',
+        imageSrc: './icon/1.png',
+        detailImage: './detail/detail1.jpg', // ✅ 사진 있음 -> 나옴
+        title: '브랜드 아이덴티티',
+        tag: 'Branding',
+        desc: '사진이 있는 프로젝트입니다. 이미지가 상단에 표시됩니다.'
+      },
+      {
+        id: 'work-2',
+        imageSrc: './icon/2.png',
+        detailImage: './detail/detail2.jpg', //
+        title: '텍스트 전용 프로젝트',
+        tag: 'Writing',
+        desc: '이 프로젝트는 사진이 없습니다. 그래서 이미지 박스가 사라지고 텍스트만 깔끔하게 보입니다.'
+      },
+      {
+        id: 'work-3',
+        imageSrc: './icon/3.png',
+        detailImage: './detail/oops.jpg', // ⚠️ 파일명이 틀렸거나 파일이 없으면? -> 자동으로 숨김!
+        title: '이미지 로드 실패 테스트',
+        tag: 'Test',
+        desc: '연결된 이미지가 실제 폴더에 없다면, 엑스박스 대신 그냥 숨겨버립니다.'
+      },
+      // ... 아래에 계속 추가하세요 ...
+      {
+        id: 'work-4',
+        imageSrc: './icon/4.png',
+        detailImage: './detail/detail4.jpg',
+        title: '전시회 포스터',
+        tag: 'Graphic',
+        desc: '포스터 작업물입니다.'
+      },
+      {
+        id: 'work-5',
+        imageSrc: './icon/5.png',
+        detailImage: './detail/detail5.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-6',
+        imageSrc: './icon/6.png',
+        detailImage: './detail/detail6.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-7',
+        imageSrc: './icon/7.png',
+        detailImage: '', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-8',
+        imageSrc: './icon/5.png',
+        detailImage: './detail/detail6.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-9',
+        imageSrc: './icon/9.png',
+        detailImage: './detail/detail9.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-10',
+        imageSrc: './icon/10.png',
+        detailImage: './detail/detail10.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-11',
+        imageSrc: './icon/11.png',
+        detailImage: './detail/detail11.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-12',
+        imageSrc: './icon/12.png',
+        detailImage: '', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-13',
+        imageSrc: './icon/13.png',
+        detailImage: '', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-14',
+        imageSrc: './icon/14.png',
+        detailImage: './detail/detail5.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      },
+      {
+        id: 'work-15',
+        imageSrc: './icon/15.png',
+        detailImage: './detail/detail5.jpg', 
+        title: '아이디어 스케치',
+        tag: 'Sketch',
+        desc: '사진 없이 설명만 있는 경우입니다.'
+      }
+    ];
     // =================================================================
 
     const HITBOX_SCALE = 0.75; 
@@ -122,18 +251,19 @@
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Body = Matter.Body,
-          Query = Matter.Query,
-          Vector = Matter.Vector;
+          Query = Matter.Query;
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
-    // 모달 요소
+    // 모달 관련 요소
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
+    const detailImgBox = document.getElementById('detailImgBox'); // 박스 통째로 제어
+    const detailMainImg = document.getElementById('detailMainImg');
     const detailClose = document.getElementById('detailClose');
 
     const loadedImages = {};
@@ -145,8 +275,7 @@
         const img = new Image();
         img.onload = () => { loadedCount++; checkLoaded(callback); };
         img.onerror = () => { 
-            // 이미지 없어도 일단 진행 (빨간 박스로 대체됨)
-            console.warn("이미지 없음: " + work.imageSrc);
+            // 아이콘 없으면 경고만 하고 진행
             loadedCount++; checkLoaded(callback); 
         };
         img.src = work.imageSrc;
@@ -156,13 +285,13 @@
     function checkLoaded(callback) { if (loadedCount === works.length) callback(); }
 
     const engine = Engine.create({ 
-      enableSleeping: true, // 최적화
+      enableSleeping: true, 
       positionIterations: 8,
       velocityIterations: 8
     });
     
     const world = engine.world;
-    engine.gravity.y = 2.5; // 속도 유지 (2.5)
+    engine.gravity.y = 2.5; 
 
     const isMobile = () => window.innerWidth <= 900;
     let walls = [];
@@ -225,7 +354,6 @@
           customData: { work, image: img, width: visualWidth, height: visualHeight }
         });
 
-        // 툭 던지는 속도 (20~40)
         Body.setVelocity(body, { 
             x: (Math.random() - 0.5) * 5, 
             y: Math.random() * 20 + 20 
@@ -260,28 +388,18 @@
         if (image && image.complete && image.naturalWidth !== 0) {
             ctx.drawImage(image, -width/2, -height/2, width, height);
         } else {
-            // 이미지가 없으면 빨간 글씨
             ctx.fillStyle = '#eee';
             ctx.fillRect(-width/2, -height/2, width, height);
-            ctx.fillStyle = 'red';
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText("No Image", 0, 0);
         }
         ctx.restore();
       }
       requestAnimationFrame(renderLoop);
     }
 
-    // =================================================================
-    // 🔥 핵심 수정: 클릭 판별 로직 강화
-    // =================================================================
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
     let velocityX = 0, velocityY = 0;
-    
-    // 클릭 감지용 변수
     let downTime = 0;
     let moveDist = 0;
 
@@ -298,8 +416,6 @@
       const pos = getPointerPos(e);
       lastPointerX = pos.x; lastPointerY = pos.y;
       isPointerDown = true;
-      
-      // 시간과 이동거리 0으로 초기화
       downTime = performance.now();
       moveDist = 0;
 
@@ -308,7 +424,6 @@
 
       if (clicked.length > 0) {
         dragBody = clicked[0];
-        // 중요: 잡으면 깨움
         Matter.Sleeping.set(dragBody, false);
         Body.setVelocity(dragBody, { x: 0, y: 0 });
         Body.setAngularVelocity(dragBody, 0);
@@ -322,8 +437,6 @@
       const dx = pos.x - lastPointerX;
       const dy = pos.y - lastPointerY;
       velocityX = dx; velocityY = dy;
-      
-      // 얼마나 움직였나 누적 계산
       moveDist += Math.sqrt(dx*dx + dy*dy);
 
       if (dragBody) {
@@ -339,43 +452,66 @@
       const upTime = performance.now();
       const elapsed = upTime - downTime;
 
-      // 🔥 클릭 판정 조건 완화 🔥
-      // 1. 움직임이 30px 이하고 (손떨림 허용)
-      // 2. 누른 시간이 0.6초 이하면 (지긋이 눌러도 허용)
-      // => "클릭"으로 인정
       if (dragBody && moveDist < 30 && elapsed < 600) {
           if (dragBody.customData && dragBody.customData.work) {
             showDetail(dragBody.customData.work);
-            // 클릭했으니 던지지 않고 정지시킴
             Body.setVelocity(dragBody, { x: 0, y: 0 });
           }
       } 
       else if (dragBody) {
-        // 위의 조건이 아니면 "던지기"로 간주
         Body.setVelocity(dragBody, { x: velocityX * 1.5, y: velocityY * 1.5 });
         Body.setAngularVelocity(dragBody, Math.random() * 0.2 - 0.1);
       }
       dragBody = null;
     }
 
-    // 모달 열기
+    // =================================================================
+    // 🔥 [수정됨] 스마트 이미지 처리 함수
+    // =================================================================
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.desc;
+      
+      // 1. 데이터에 이미지가 지정되어 있는지 확인
+      if (work.detailImage && work.detailImage.trim() !== "") {
+        // 이미지가 있다고 설정되어 있으면 일단 보여줌
+        detailImgBox.style.display = 'flex';
+        detailMainImg.src = work.detailImage;
+      } else {
+        // 설정이 비어있으면 숨김
+        detailImgBox.style.display = 'none';
+        detailMainImg.src = "";
+      }
+
+      // 2. 만약 이미지를 불렀는데 파일이 없으면(에러나면) 숨김
+      detailMainImg.onerror = function() {
+        detailImgBox.style.display = 'none';
+        this.src = "";
+      };
+
+      // 3. 로드 성공하면 확실하게 보여줌
+      detailMainImg.onload = function() {
+        detailImgBox.style.display = 'flex';
+      };
+
       detailOverlay.classList.add('open');
     }
     
-    // 모달 닫기
     function hideDetail() {
       detailOverlay.classList.remove('open');
+      // 닫을 때 초기화
+      setTimeout(() => { 
+        detailMainImg.src = ""; 
+        detailImgBox.style.display = 'none'; // 닫을 때 일단 숨겨둠
+      }, 200);
     }
+
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', (e) => {
       if (e.target === detailOverlay) hideDetail();
     });
 
-    // 이벤트 연결
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('mousemove', onPointerMove);
     canvas.addEventListener('mouseup', onPointerUp);
@@ -383,7 +519,6 @@
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
 
-    // 스페이스바 (리셋)
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault(); spawnBoxes();       
