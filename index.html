@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio - Diagnostic Mode</title>
+  <title>Portfolio - Side Layout</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
   <style>
@@ -29,15 +29,15 @@
       font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; 
       z-index: 10; 
-      background: rgba(255,255,255,0.95);
-      padding: 20px;
+      background: rgba(255,255,255,0.9);
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
+    /* === 모달 스타일 (레이아웃 변경됨) === */
     .detail-overlay {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0,0,0,0.5);
       opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
       z-index: 9999;
       padding: 20px;
@@ -45,46 +45,80 @@
     .detail-overlay.open { opacity: 1; pointer-events: auto; }
     
     .detail-modal {
-      width: min(500px, 90vw); 
-      max-height: 85vh; 
+      /* 너비를 더 넓힘 (가로 배치니까) */
+      width: min(900px, 95vw); 
+      height: min(600px, 90vh); /* 높이 고정 (내부 스크롤) */
       background: #fff; 
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
       padding: 30px; 
       transform: translateY(20px); transition: transform 0.25s ease;
-      display: flex; flex-direction: column; gap: 15px;
-      overflow-y: auto; 
+      display: flex; flex-direction: column; 
+      overflow: hidden; /* 전체 스크롤 막고 내부 스크롤 사용 */
     }
     .detail-overlay.open .detail-modal { transform: translateY(0); }
     
-    .detail-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .detail-title { font-weight: 800; font-size: 1.5rem; color: #111; margin: 0; }
+    /* 헤더 (제목 + 닫기버튼) */
+    .detail-header { 
+      display: flex; justify-content: space-between; align-items: center; 
+      margin-bottom: 20px; flex-shrink: 0;
+    }
+    .detail-title { font-weight: 800; font-size: 1.8rem; color: #111; margin: 0; }
     .detail-close { 
       cursor: pointer; border: none; background: transparent; 
-      font-size: 2rem; line-height: 0.8; color: #999; padding: 0;
+      font-size: 2.5rem; line-height: 0.8; color: #999; padding: 0; margin-left: 20px;
     }
     .detail-close:hover { color: #000; }
     
-    .detail-img-box {
-      width: 100%;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #f5f5f5;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100px;
-      border: 1px solid #eee;
+    /* === 좌우 레이아웃 컨테이너 === */
+    .detail-content {
+      display: flex; 
+      gap: 30px; 
+      flex: 1; 
+      overflow: hidden; /* 내부 스크롤을 위해 */
     }
+
+    /* 왼쪽: 이미지 영역 */
+    .detail-left {
+      flex: 1.2; /* 사진 영역을 조금 더 넓게 */
+      background: #f9f9f9;
+      border-radius: 8px;
+      overflow-y: auto; /* 세로 긴 사진 스크롤 가능하게 */
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    /* 사진 스타일: 잘림 없이 원본 비율 유지 */
     .detail-img {
-      width: 100%; height: auto; display: block;
-      object-fit: cover;
+      width: 100%; 
+      height: auto; 
+      display: block;
+      border-radius: 8px;
+    }
+
+    /* 오른쪽: 텍스트 영역 */
+    .detail-right {
+      flex: 1; 
+      overflow-y: auto; /* 글이 길면 스크롤 */
+      padding-right: 10px;
+      display: flex; flex-direction: column; gap: 15px;
     }
 
     .detail-tag { 
-      display: inline-block; background: #f0f0f0; color: #555; 
-      padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+      display: inline-block; background: #eee; color: #444; 
+      padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: 700;
       align-self: flex-start;
     }
-    .detail-body { font-size: 1rem; line-height: 1.6; color: #444; white-space: pre-line; }
+    .detail-body { 
+      font-size: 1.05rem; line-height: 1.7; color: #333; 
+      white-space: pre-line; /* 줄바꿈 적용 */
+    }
+
+    /* === 모바일 반응형 (화면 좁으면 위아래로 변경) === */
+    @media (max-width: 768px) {
+      .detail-modal { height: auto; max-height: 85vh; overflow-y: auto; }
+      .detail-content { flex-direction: column; overflow: visible; }
+      .detail-left { width: 100%; min-height: 200px; overflow: visible; }
+      .detail-right { width: 100%; overflow: visible; }
+    }
   </style>
 </head>
 <body>
@@ -92,59 +126,69 @@
   <canvas id="canvas"></canvas>
 
   <div id="intro">
-    <div style="color: red; font-weight: bold; margin-bottom: 10px;">🚨 [진단 모드 실행 중]</div>
     <div>
-      이미지가 안 뜨는 박스를 클릭해보세요.<br>
-      왜 안 뜨는지 <b>경고창(Alert)</b>으로 알려줍니다.<br>
-      <br>
-      (화면을 클릭하면 시작합니다)
+      <b>[좌우 레이아웃 적용]</b><br>
+      클릭하면<br>
+      왼쪽엔 사진, 오른쪽엔 설명이 나옵니다.
     </div>
   </div>
 
   <div class="detail-overlay" id="detailOverlay">
     <div class="detail-modal">
+      
       <div class="detail-header">
         <h2 class="detail-title" id="detailTitle">Title</h2>
         <button class="detail-close" id="detailClose">×</button>
       </div>
       
-      <div class="detail-img-box" id="detailImgBox">
-        <img src="" alt="Detail" class="detail-img" id="detailMainImg">
+      <div class="detail-content">
+        <div class="detail-left" id="detailImgCol">
+          <img src="" class="detail-img" id="detailMainImg">
+        </div>
+
+        <div class="detail-right">
+          <div class="detail-tag" id="detailTag">Tag</div>
+          <div class="detail-body" id="detailBody">Desc</div>
+        </div>
       </div>
 
-      <div class="detail-tag" id="detailTag">Tag</div>
-      <div class="detail-body" id="detailBody">Desc</div>
     </div>
   </div>
 
   <script>
     // =================================================================
     // 🔥 데이터 설정
-    // 여기서 detailImage 경로를 실제 파일명과 똑같이 맞춰주세요.
     // =================================================================
     const works = [
       {
         id: 'work-1',
         imageSrc: './icon/1.png',
-        detailImage: './detail/detail1.jpg', // 👈 여기를 실제 파일명으로 수정하세요!
-        title: '작품 1',
-        tag: 'Design',
-        desc: '설명 1'
+        detailImage: './detail/1.png', // 세로로 긴 사진도 OK
+        title: '브랜드 디자인',
+        tag: 'Branding',
+        desc: '이 프로젝트는 세로로 긴 이미지가 포함되어 있습니다.\n스크롤을 내리면 전체 이미지를 볼 수 있습니다.\n\n설명은 이제 오른쪽에 위치하여, 사진을 보면서 동시에 글을 읽기 편해졌습니다.'
       },
       {
         id: 'work-2',
         imageSrc: './icon/2.png',
-        detailImage: './detail/detail2.jpg', // 👈 여기도 수정!
-        title: '작품 2',
-        tag: 'Art',
-        desc: '설명 2'
+        detailImage: './detail/2.jpg', 
+        title: '포스터 컬렉션',
+        tag: 'Graphic',
+        desc: '포스터 작업물입니다.\n왼쪽에 포스터 전체가 잘림 없이 나옵니다.'
       },
-      // ... 아래에 계속 추가 (샘플 데이터입니다)
-      { id: 'work-3', imageSrc: './icon/3.png', detailImage: './detail/3.png', title: '작품 3', tag: 'Web', desc: '설명' },
-      { id: 'work-4', imageSrc: './icon/4.png', detailImage: './detail/4.jpg', title: '작품 4', tag: 'Web', desc: '설명' },
-      { id: 'work-5', imageSrc: './icon/5.png', detailImage: './detail/5.jpg', title: '작품 5', tag: 'Web', desc: '설명' },
-      { id: 'work-6', imageSrc: './icon/6.png', detailImage: '', title: '작품 6 (이미지 없음)', tag: 'Text', desc: '이건 이미지 없는 글 전용입니다.' },
-      // ... 필요하면 더 복사해서 쓰세요
+      {
+        id: 'work-3',
+        imageSrc: './icon/3.png',
+        detailImage: '', // ❌ 사진 없음
+        title: '에세이 및 기고문',
+        tag: 'Writing',
+        desc: '사진이 없는 경우에는 왼쪽 이미지 칸이 자동으로 사라집니다.\n\n그래서 텍스트가 넓은 공간을 차지하게 되어 글을 읽기에 훨씬 쾌적합니다.\n마치 책을 읽는 듯한 느낌을 줄 수 있습니다.'
+      },
+      // ... 필요한 만큼 데이터 추가 ...
+       {
+        id: 'work-4', imageSrc: './icon/4.png', detailImage: './detail/4.jpg', 
+        title: '웹사이트 디자인', tag: 'Web', desc: '웹사이트 전체 스크롤 캡처 이미지도 잘리지 않고 잘 나옵니다.' 
+      },
     ];
     // =================================================================
 
@@ -161,11 +205,13 @@
     const ctx = canvas.getContext('2d');
     const intro = document.getElementById('intro');
     
+    // 모달 요소들
     const detailOverlay = document.getElementById('detailOverlay');
     const detailTitle = document.getElementById('detailTitle');
     const detailTag = document.getElementById('detailTag');
     const detailBody = document.getElementById('detailBody');
-    const detailImgBox = document.getElementById('detailImgBox'); 
+    
+    const detailImgCol = document.getElementById('detailImgCol'); // 왼쪽 컬럼 (이미지 영역)
     const detailMainImg = document.getElementById('detailMainImg');
     const detailClose = document.getElementById('detailClose');
 
@@ -208,7 +254,6 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
       const thick = 5000; 
-      
       walls = [
         Bodies.rectangle(w/2, h - FLOOR_OFFSET + thick/2, w * 10, thick, { isStatic: true, render: { visible: false } }),
         Bodies.rectangle(-200, h/2, 400, h * 10, { isStatic: true, render: { visible: false } }),
@@ -225,13 +270,11 @@
         const img = loadedImages[work.id];
         let visualWidth = baseSize;
         let visualHeight = baseSize;
-        
         if (img && img.complete && img.naturalWidth !== 0) {
           const aspect = img.naturalHeight / img.naturalWidth;
           visualWidth = baseSize + (Math.random() - 0.5) * 40; 
           visualHeight = visualWidth * aspect;
         }
-
         const physWidth = visualWidth * HITBOX_SCALE;
         const physHeight = visualHeight * HITBOX_SCALE;
         
@@ -242,9 +285,7 @@
           angle: Math.random() * Math.PI * 2,
           chamfer: { radius: 10 },
           frictionAir: 0.01,
-          restitution: 0.4, 
-          friction: 0.5,
-          density: 0.005,
+          restitution: 0.4, friction: 0.5, density: 0.005,
           render: { visible: false },
           customData: { work, image: img, width: visualWidth, height: visualHeight }
         });
@@ -260,21 +301,16 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
-
       const bodies = Composite.allBodies(world);
       ctx.beginPath();
-      
       for (let i = 0; i < bodies.length; i += 1) {
         const body = bodies[i];
         if (body.isStatic) continue;
-
         const { x, y } = body.position;
         const { width, height, image } = body.customData || {};
-        
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(body.angle);
-
         if (image && image.complete && image.naturalWidth !== 0) {
             ctx.drawImage(image, -width/2, -height/2, width, height);
         } else {
@@ -307,7 +343,6 @@
       isPointerDown = true;
       downTime = performance.now();
       moveDist = 0;
-
       const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
       const clicked = Query.point(bodies, pos);
       if (clicked.length > 0) {
@@ -352,36 +387,28 @@
     }
 
     // =================================================================
-    // 🚨 [핵심] 진단용 이미지 표시 함수
+    // 🔥 [업데이트] 레이아웃 대응 함수
     // =================================================================
     function showDetail(work) {
       detailTitle.textContent = work.title;
       detailTag.textContent = work.tag;
       detailBody.textContent = work.desc;
       
-      // 1. 이미지가 없다고 설정한 경우
+      // 1. 이미지 설정 확인
       if (!work.detailImage || work.detailImage.trim() === "") {
-        detailImgBox.style.display = 'none';
+        // 이미지가 없으면 -> 왼쪽 컬럼 자체를 숨김 (글씨가 전체 차지)
+        detailImgCol.style.display = 'none';
         detailMainImg.src = "";
-        detailOverlay.classList.add('open');
-        return;
+      } else {
+        // 이미지가 있으면 -> 보여줌
+        detailImgCol.style.display = 'flex';
+        detailMainImg.src = work.detailImage;
       }
 
-      // 2. 이미지가 있다고 설정된 경우 - 일단 박스를 보여줌
-      detailImgBox.style.display = 'flex';
-      detailMainImg.src = work.detailImage;
-
-      // 3. 🚨 에러 발생 시 경고창 띄우기
+      // 2. 에러 발생 시 숨김 처리
       detailMainImg.onerror = function() {
-        alert("❌ 이미지 로딩 실패!\n\n1. 코드에 적힌 경로: " + work.detailImage + "\n2. 브라우저가 찾은 경로: " + this.src + "\n\n[확인할 것]\n- detail 폴더가 index.html 옆에 있나요?\n- 파일명이 1.PNG 인데 코드엔 1.png 라고 적지 않았나요?");
-        
-        // 엑스박스라도 보이게 유지
-        this.alt = "경로 오류: " + work.detailImage;
-      };
-
-      // 4. 로드 성공하면 콘솔에 메시지
-      detailMainImg.onload = function() {
-        console.log("✅ 이미지 로드 성공: " + work.detailImage);
+        detailImgCol.style.display = 'none'; // 에러나면 컬럼 숨김
+        this.src = "";
       };
 
       detailOverlay.classList.add('open');
@@ -391,7 +418,7 @@
       detailOverlay.classList.remove('open');
       setTimeout(() => { 
         detailMainImg.src = ""; 
-        detailImgBox.style.display = 'none';
+        detailImgCol.style.display = 'none'; // 초기화
       }, 200);
     }
 
