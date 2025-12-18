@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Portfolio - Perfect Image Fit</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   
@@ -12,7 +13,10 @@
       overflow: hidden;
       font-family: system-ui, -apple-system, sans-serif;
       background: #ffffff;
+      /* 모바일에서 스크롤/확대 제스처 무시 */
       touch-action: none; 
+      -webkit-user-select: none; /* 텍스트 선택 방지 */
+      user-select: none;
     }
     canvas {
       position: fixed; inset: 0; display: block;
@@ -25,11 +29,13 @@
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      pointer-events: none;
+      /* pointer-events를 auto로 두어 클릭 감지 */
+      pointer-events: auto;
       font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; 
       z-index: 10; 
       background: rgba(255,255,255,0.9);
+      cursor: pointer;
     }
     #intro.hidden { opacity: 0; pointer-events: none; }
     
@@ -41,6 +47,8 @@
       opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
       z-index: 9999;
       padding: 20px;
+      /* 모달 위에서는 터치 동작 허용 */
+      touch-action: auto; 
     }
     .detail-overlay.open { opacity: 1; pointer-events: auto; }
     
@@ -101,6 +109,7 @@
       overflow-y: auto; 
       padding-right: 10px;
       display: flex; flex-direction: column; gap: 15px;
+      -webkit-overflow-scrolling: touch; /* 모바일 부드러운 스크롤 */
     }
 
     .detail-tag { 
@@ -111,6 +120,7 @@
     .detail-body { 
       font-size: 1.05rem; line-height: 1.7; color: #333; 
       white-space: pre-line; 
+      user-select: text; /* 텍스트 선택 가능하게 */
     }
 
     /* 모바일 대응 */
@@ -127,10 +137,10 @@
   <canvas id="canvas"></canvas>
 
   <div id="intro">
-    <div>
-      <b>[수정 완료]</b><br>
-      아이콘을 클릭하면<br>
-      사진이 잘리지 않고 중앙에 표시됩니다.
+    <div style="pointer-events: none;">
+      <b>[모바일/PC 완벽 호환]</b><br>
+      화면을 터치하여 시작하세요.<br>
+      아이콘을 드래그하거나 클릭해보세요.
     </div>
   </div>
 
@@ -156,7 +166,6 @@
   <script>
     // =================================================================
     // 🔥 데이터 설정
-    // desc 부분에 백틱(`)을 사용하여 오류를 방지했습니다.
     // =================================================================
     const works = [
       {
@@ -410,6 +419,9 @@
       requestAnimationFrame(renderLoop);
     }
 
+    // =================================================================
+    // 👆 터치/클릭 이벤트 핸들러 (모바일 최적화 수정됨)
+    // =================================================================
     let dragBody = null;
     let isPointerDown = false;
     let lastPointerX = 0, lastPointerY = 0;
@@ -417,20 +429,31 @@
     let downTime = 0;
     let moveDist = 0;
 
+    // 모바일 터치와 마우스 좌표를 모두 안전하게 가져오는 함수
     function getPointerPos(e) {
       const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      // 터치 이벤트인지 확인
+      const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+      const clientX = touch ? touch.clientX : e.clientX;
+      const clientY = touch ? touch.clientY : e.clientY;
       return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
     function onPointerDown(e) {
+      // 모달이 열려있으면 캔버스 클릭 무시
       if (detailOverlay.classList.contains('open')) return;
+      
+      // 🔥 [중요] 모바일에서 터치 시 스크롤/새로고침 방지
+      if (e.type === 'touchstart') {
+          e.preventDefault(); 
+      }
+
       const pos = getPointerPos(e);
       lastPointerX = pos.x; lastPointerY = pos.y;
       isPointerDown = true;
       downTime = performance.now();
       moveDist = 0;
+      
       const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
       const clicked = Query.point(bodies, pos);
       if (clicked.length > 0) {
@@ -443,12 +466,14 @@
 
     function onPointerMove(e) {
       if (!isPointerDown) return;
-      e.preventDefault();
+      e.preventDefault(); // 드래그 중 스크롤 방지
+      
       const pos = getPointerPos(e);
       const dx = pos.x - lastPointerX;
       const dy = pos.y - lastPointerY;
       velocityX = dx; velocityY = dy;
       moveDist += Math.sqrt(dx*dx + dy*dy);
+      
       if (dragBody) {
         Matter.Sleeping.set(dragBody, false);
         Body.setPosition(dragBody, { x: dragBody.position.x + dx, y: dragBody.position.y + dy });
@@ -461,6 +486,8 @@
       isPointerDown = false;
       const upTime = performance.now();
       const elapsed = upTime - downTime;
+      
+      // 모바일은 손떨림이 있어서 30픽셀 정도 움직임은 클릭으로 인정
       if (dragBody && moveDist < 30 && elapsed < 600) {
           if (dragBody.customData && dragBody.customData.work) {
             showDetail(dragBody.customData.work);
@@ -468,6 +495,7 @@
           }
       } 
       else if (dragBody) {
+        // 던지기 효과
         Body.setVelocity(dragBody, { x: velocityX * 1.5, y: velocityY * 1.5 });
         Body.setAngularVelocity(dragBody, Math.random() * 0.2 - 0.1);
       }
@@ -475,7 +503,7 @@
     }
 
     // =================================================================
-    // 🔥 [이미지 표시 로직]
+    // [이미지 표시 로직]
     // =================================================================
     function showDetail(work) {
       detailTitle.textContent = work.title;
@@ -506,31 +534,50 @@
       }, 200);
     }
 
+    // 닫기 버튼/배경 터치 처리
     detailClose.addEventListener('click', hideDetail);
     detailOverlay.addEventListener('click', (e) => {
       if (e.target === detailOverlay) hideDetail();
     });
+    // 모바일 터치 대응 (배경 터치시 닫기)
+    detailOverlay.addEventListener('touchstart', (e) => {
+      if (e.target === detailOverlay) {
+        e.preventDefault(); // 배경 터치시 뒤쪽 캔버스 터치 방지
+        hideDetail();
+      }
+    });
 
+    // 이벤트 리스너 등록 (PC/Mobile 모두 대응)
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('mousemove', onPointerMove);
     canvas.addEventListener('mouseup', onPointerUp);
+    
+    // 모바일용 (passive: false 필수)
     canvas.addEventListener('touchstart', onPointerDown, { passive: false });
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     canvas.addEventListener('touchend', onPointerUp);
+
     window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); spawnBoxes(); } });
 
     let hasStarted = false;
-    function start() {
+    function start(e) {
       if (hasStarted) return;
+      
+      // 시작 터치 시 스크롤 방지
+      if(e && e.type === 'touchstart') e.preventDefault();
+
       hasStarted = true;
       intro.classList.add('hidden');
       resizeCanvas();
       spawnBoxes();
       renderLoop();
     }
+    
     preloadImages(() => {
-      document.body.addEventListener('click', start, { once: true });
-      document.body.addEventListener('touchstart', start, { once: true });
+      // Intro 화면 전체를 클릭 영역으로 잡음
+      const introDiv = document.getElementById('intro');
+      introDiv.addEventListener('click', start);
+      introDiv.addEventListener('touchstart', start, { passive: false });
     });
   </script>
 </body>
