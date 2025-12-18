@@ -13,9 +13,8 @@
       overflow: hidden;
       font-family: system-ui, -apple-system, sans-serif;
       background: #ffffff;
-      /* 모바일에서 스크롤/확대 제스처 무시 */
       touch-action: none; 
-      -webkit-user-select: none; /* 텍스트 선택 방지 */
+      -webkit-user-select: none; 
       user-select: none;
     }
     canvas {
@@ -29,7 +28,6 @@
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      /* pointer-events를 auto로 두어 클릭 감지 */
       pointer-events: auto;
       font-size: 1.1rem; color: #555; text-align: center;
       transition: opacity 0.3s ease; 
@@ -47,7 +45,6 @@
       opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
       z-index: 9999;
       padding: 20px;
-      /* 모달 위에서는 터치 동작 허용 */
       touch-action: auto; 
     }
     .detail-overlay.open { opacity: 1; pointer-events: auto; }
@@ -109,7 +106,7 @@
       overflow-y: auto; 
       padding-right: 10px;
       display: flex; flex-direction: column; gap: 15px;
-      -webkit-overflow-scrolling: touch; /* 모바일 부드러운 스크롤 */
+      -webkit-overflow-scrolling: touch; 
     }
 
     .detail-tag { 
@@ -120,7 +117,7 @@
     .detail-body { 
       font-size: 1.05rem; line-height: 1.7; color: #333; 
       white-space: pre-line; 
-      user-select: text; /* 텍스트 선택 가능하게 */
+      user-select: text; 
     }
 
     /* 모바일 대응 */
@@ -140,7 +137,7 @@
     <div style="pointer-events: none;">
       <b>[모바일/PC 완벽 호환]</b><br>
       화면을 터치하여 시작하세요.<br>
-      아이콘을 드래그하거나 클릭해보세요.
+      빈 화면을 <b>두 번 터치(더블 클릭)</b>하면<br>아이콘이 떨어집니다.
     </div>
   </div>
 
@@ -420,7 +417,7 @@
     }
 
     // =================================================================
-    // 👆 터치/클릭 이벤트 핸들러 (모바일 최적화 수정됨)
+    // 👆 터치/클릭 이벤트 핸들러 (더블클릭 기능 추가됨)
     // =================================================================
     let dragBody = null;
     let isPointerDown = false;
@@ -428,6 +425,7 @@
     let velocityX = 0, velocityY = 0;
     let downTime = 0;
     let moveDist = 0;
+    let lastTapTime = 0; // 더블 탭 감지용 변수
 
     // 모바일 터치와 마우스 좌표를 모두 안전하게 가져오는 함수
     function getPointerPos(e) {
@@ -486,6 +484,16 @@
       isPointerDown = false;
       const upTime = performance.now();
       const elapsed = upTime - downTime;
+
+      // 🔥 [더블 클릭/더블 탭 감지 로직]
+      // 아이콘을 잡지 않은 상태(빈공간)에서 0.3초 이내에 두 번 터치하면 실행
+      const tapGap = upTime - lastTapTime;
+      if (!dragBody && tapGap < 300 && tapGap > 0) {
+          spawnBoxes(); // 아이콘 떨어뜨리기
+          lastTapTime = 0; // 초기화
+          return;
+      }
+      lastTapTime = upTime;
       
       // 모바일은 손떨림이 있어서 30픽셀 정도 움직임은 클릭으로 인정
       if (dragBody && moveDist < 30 && elapsed < 600) {
